@@ -16,4 +16,8 @@ public class IndexController {
         return map;
     }
 
+    @RequestMapping("/test2")
+    public String add() {
+        return "I just add .";
+    }
 }

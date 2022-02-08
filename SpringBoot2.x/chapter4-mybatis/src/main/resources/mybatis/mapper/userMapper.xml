@@ -5,7 +5,7 @@
 <mapper namespace="com.example.mapper.UserMapper">
     <insert id="addUser">
         insert into user_a(name, pwd)
-        values (#{id}, #{name}, #{pwd})
+        values (#{name}, #{pwd})
     </insert>
     <update id="updateUser">
         update user_a set name = #{name},

@@ -13,7 +13,7 @@
         where id = #{id}
     </update>
     <delete id="deleteUserById">
-        delete user_a where id = #{id}
+        delete from user_a where id = #{id}
     </delete>
 
     <select id="queryUserList" resultType="com.example.pojo.User">

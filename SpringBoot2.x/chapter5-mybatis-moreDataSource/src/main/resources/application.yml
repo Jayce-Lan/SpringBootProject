@@ -1,0 +1,17 @@
+server:
+  port: 8999
+
+spring:
+  datasource:
+    drds:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: root
+      password: root
+      url: jdbc:mysql://localhost:3306/chapter3?serverTimezone=UTC&userUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false
+      mapper-locations: classpath:mybatis/mapper/*DRDSMapper.xml
+    adb:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: root
+      password: root
+      url: jdbc:mysql://localhost:3306/chapter4?serverTimezone=UTC&userUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false
+      mapper-locations: classpath:mybatis/mapper/*ADBMapper.xml

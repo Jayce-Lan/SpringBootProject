@@ -300,4 +300,4 @@ public class AdbDataSourceConfig {
 
 
 
-随后根据需求调用Dao层即可，详情参考 *chapter5-mybatis-moreDataSource*
+随后根据需求调用Dao层即可，详情参考[ *chapter5-mybatis-moreDataSource*](https://github.com/Jayce-Lan/SpringBootProject/tree/master/SpringBoot2.x/chapter5-mybatis-moreDataSource)

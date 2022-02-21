@@ -26,4 +26,13 @@ public class UserController {
     public List<UserA> queryDrdsUsers() {
         return drdsUserMapper.queryUsers();
     }
+
+    @RequestMapping("/addDrdsUser")
+    public String addDrdsUser(UserA userA) throws Exception {
+        int count = drdsUserMapper.addDrdsUser(userA);
+        if (count != 1) {
+            throw new Exception("插入错误！");
+        }
+        return "success";
+    }
 }

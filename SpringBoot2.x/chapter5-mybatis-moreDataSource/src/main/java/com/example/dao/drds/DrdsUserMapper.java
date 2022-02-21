@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface DrdsUserMapper {
     List<UserA> queryUsers();
+    int addDrdsUser(UserA userA);
 }

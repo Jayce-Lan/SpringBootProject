@@ -355,3 +355,25 @@ public UserADTO queryUserById(UserADTO userADTO) {
 - `@CachePut` 只是用于将标记该注解的方法的返回值放入缓存中，无论缓存中是否包含当前缓存，只是以键值的形式将执行结果放入缓存中。在使用方面，@CachePut注解和@Cacheable注解一致
 
 - `@CacheEvict` Spring Cache提供了@CacheEvict注解用于清除缓存数据，与@Cacheable类似，不过@CacheEvict用于方法时清除当前方法的缓存，用于类时清除当前类所有方法的缓存;@CacheEvict除了提供与@Cacheable一致的3个属性外，还提供了一个常用的属性allEntries，这个属性的默认值为false，如果指定属性值为true，就会清除当前value值的所有缓存
+
+
+
+### Spring Boot整合Redis
+
+#### 引入依赖
+
+> Spring Boot中的主要依赖为：spring-boot-starter-data-redis
+
+```xml
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+```
+
+#### 配置文件
+
+```properties
+spring.redis.host=localhost
+spring.redis.port=6379
+```

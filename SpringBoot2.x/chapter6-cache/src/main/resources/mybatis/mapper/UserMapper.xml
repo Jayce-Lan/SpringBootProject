@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cache.dao.UserMapper">
+    <insert id="addUser" useGeneratedKeys="true" keyProperty="id">
+        insert into user_a(name, pwd)
+        values (#{name}, #{pwd})
+    </insert>
+
+    <select id="queryUsers" resultType="com.cache.pojo.UserADTO">
+        select id,
+               name,
+               pwd
+        from user_a
+    </select>
+    <select id="queryUserById" resultType="com.cache.pojo.UserADTO">
+        select id,
+               name,
+               pwd
+        from user_a
+        where id = #{id}
+    </select>
+</mapper>

@@ -44,6 +44,8 @@ spring.datasource.url=jdbc:mysql://localhost:3306/chapter3?serverTimezone=UTC&us
 mybatis.type-aliases-package=com.example.pojo
 # 配置Mapper对应的xml的文件夹
 mybatis.mapper-locations=classpath:mybatis/mapper/*.xml
+# 控制台打印SQL
+mybatis.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 ```
 
 ### 配置接口
@@ -62,34 +64,32 @@ mybatis.mapper-locations=classpath:mybatis/mapper/*.xml
 
 ```xml
 <dependencies>
-	<dependency>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-data-jdbc</artifactId>
-	</dependency>
-	<dependency>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-web</artifactId>
-	</dependency>
-	<dependency>
-		<groupId>org.mybatis.spring.boot</groupId>
-		<artifactId>mybatis-spring-boot-starter</artifactId>
-		<version>2.2.1</version>
-	</dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jdbc</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.mybatis.spring.boot</groupId>
+        <artifactId>mybatis-spring-boot-starter</artifactId>
+        <version>2.2.1</version>
+    </dependency>
 
-	<dependency>
-		<groupId>mysql</groupId>
-		<artifactId>mysql-connector-java</artifactId>
-		<scope>runtime</scope>
-	</dependency>
-	<dependency>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-test</artifactId>
-		<scope>test</scope>
-	</dependency>
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
 </dependencies>
 ```
-
-
 
 #### 配置文件
 
@@ -111,10 +111,7 @@ spring:
       password: root
       url: jdbc:mysql://localhost:3306/chapter4?serverTimezone=UTC&userUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false
       mapper-locations: classpath:mybatis/mapper/*ADBMapper.xml
-
 ```
-
-
 
 #### 在启动类中屏蔽默认数据源
 
@@ -126,14 +123,12 @@ spring:
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 public class Chapter5MybatisMoreDataSourceApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(Chapter5MybatisMoreDataSourceApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(Chapter5MybatisMoreDataSourceApplication.class, args);
+    }
 
 }
 ```
-
-
 
 #### 配置数据源工具类
 
@@ -212,10 +207,7 @@ public class DrdsDataSourceConfig {
         return new SqlSessionTemplate(sqlSessionFactory);
     }
 }
-
 ```
-
-
 
 ##### 次要数据源
 
@@ -295,9 +287,71 @@ public class AdbDataSourceConfig {
         return new SqlSessionTemplate(sqlSessionFactory);
     }
 }
+```
 
+随后根据需求调用Dao层即可，详情参考[ *chapter5-mybatis-moreDataSource*](https://github.com/Jayce-Lan/SpringBootProject/tree/master/SpringBoot2.x/chapter5-mybatis-moreDataSource)
+
+
+
+
+
+## Spring Boot 缓存
+
+### Spring Cache
+
+> 使用注解整合缓存
+
+首先，需要配置控制台执行SQL时打印SQL语句
+
+> 配置后，如果查询时调用的非缓存，控制台会打印执行的SQL语句；如果调用了缓存，那么则会不执行SQL
+
+```properties
+mybatis.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 ```
 
 
 
-随后根据需求调用Dao层即可，详情参考[ *chapter5-mybatis-moreDataSource*](https://github.com/Jayce-Lan/SpringBootProject/tree/master/SpringBoot2.x/chapter5-mybatis-moreDataSource)
+其次，Spring Boot启动类中配置开启缓存注解 `@EnableCaching`
+
+```java
+package com.cache;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
+
+@SpringBootApplication
+// 开启缓存
+@EnableCaching
+public class Chapter6CacheApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(Chapter6CacheApplication.class, args);
+	}
+
+}
+```
+
+
+
+其次，在Controller层，加入注解
+
+> 在执行第二次同id查询时，会发现控制台不再打印SQL，而是从缓存调取
+
+```java
+@RequestMapping("/queryUserById")
+@Cacheable(value = "user", key = "#userADTO")
+public UserADTO queryUserById(UserADTO userADTO) {
+    return userService.queryUserById(userADTO);
+}
+```
+
+
+
+#### 注解详解
+
+- `@Cacheable` 用于标记缓存，也就是对使用@Cacheable注解的位置进行缓存
+
+- `@CachePut` 只是用于将标记该注解的方法的返回值放入缓存中，无论缓存中是否包含当前缓存，只是以键值的形式将执行结果放入缓存中。在使用方面，@CachePut注解和@Cacheable注解一致
+
+- `@CacheEvict` Spring Cache提供了@CacheEvict注解用于清除缓存数据，与@Cacheable类似，不过@CacheEvict用于方法时清除当前方法的缓存，用于类时清除当前类所有方法的缓存;@CacheEvict除了提供与@Cacheable一致的3个属性外，还提供了一个常用的属性allEntries，这个属性的默认值为false，如果指定属性值为true，就会清除当前value值的所有缓存

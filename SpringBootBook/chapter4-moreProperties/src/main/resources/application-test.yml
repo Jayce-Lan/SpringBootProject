@@ -1,0 +1,19 @@
+server:
+  port: 8999
+  servlet:
+    session:
+      timeout: 30
+  tomcat:
+    uri-encoding: UTF-8
+
+myenvironment:
+  name: 测试环境
+
+personinfo:
+  name: Jace
+  age: 21
+  address:
+    - 云南
+    - 贵州
+    - 四川
+    - 广西

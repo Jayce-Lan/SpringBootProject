@@ -1,0 +1,19 @@
+server:
+  port: 8999
+  servlet:
+    session:
+      timeout: 30
+  tomcat:
+    uri-encoding: UTF-8
+
+myenvironment:
+  name: 生产环境
+
+personinfo:
+  name: Tony
+  age: 20
+  address:
+    - 北京
+    - 上海
+    - 广州
+    - 深圳

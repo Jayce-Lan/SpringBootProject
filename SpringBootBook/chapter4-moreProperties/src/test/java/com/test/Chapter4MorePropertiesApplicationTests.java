@@ -1,6 +1,7 @@
 package com.test;
 
 import com.test.config.CoTestConfig;
+import com.test.config.TestCoConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,9 @@ import javax.annotation.Resource;
 class Chapter4MorePropertiesApplicationTests {
 	@Resource
 	private CoTestConfig coTestConfig;
+
+	@Resource
+	private TestCoConfig testCoConfig;
 
 	@Value("${myenvironment.name}")
 	private String springAction;
@@ -30,4 +34,8 @@ class Chapter4MorePropertiesApplicationTests {
 		}
 	}
 
+	@Test
+	void testTestCoConfig() {
+		log.info(testCoConfig.getName());
+	}
 }

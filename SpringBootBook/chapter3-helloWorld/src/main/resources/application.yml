@@ -1,0 +1,18 @@
+server:
+  port: 8998
+  servlet:
+    session:
+      timeout: 30
+  tomcat:
+    uri-encoding: UTF-8
+
+# 由于 properties 的优先级大于 yml 因此此处的age不会生效
+age: 10
+
+personinfo:
+  name: Jack
+  age: 20
+
+personinfo2:
+  name: Tony
+  age: 21

@@ -33,6 +33,46 @@ age=11
 
 
 
+## Spring Boot 进阶
 
+### 用 *Servlet* 处理请求
 
-## Spring MVC
+- 首先，需要在启动类中配置 `ServletComponentScan` 注解（也可以在注解后配置指定包路径）
+
+- 随后 ，创建一个 *Servlet* 来处理请求
+  
+  - 需要配置 `@WebServlet` 注解
+  
+  - 需要继承 `HttpServlet` 类
+
+```java
+package com.example.config;
+
+import lombok.extern.slf4j.Slf4j;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@WebServlet(urlPatterns = "/servletDemo")
+@Slf4j
+public class ServletDemo extends HttpServlet {
+    /**
+     * 重写 doGet 方法
+     * @param req
+     * @param resp
+     * @throws ServletException
+     * @throws IOException
+     */
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        super.doGet(req, resp);
+        log.info("=========== doGet =========");
+        resp.getWriter().print("====== ServletDemo ====== ");
+    }
+}
+
+```

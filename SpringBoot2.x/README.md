@@ -291,10 +291,6 @@ public class AdbDataSourceConfig {
 
 随后根据需求调用Dao层即可，详情参考[ *chapter5-mybatis-moreDataSource*](https://github.com/Jayce-Lan/SpringBootProject/tree/master/SpringBoot2.x/chapter5-mybatis-moreDataSource)
 
-
-
-
-
 ## Spring Boot 缓存
 
 ### Spring Cache
@@ -308,8 +304,6 @@ public class AdbDataSourceConfig {
 ```properties
 mybatis.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 ```
-
-
 
 其次，Spring Boot启动类中配置开启缓存注解 `@EnableCaching`
 
@@ -325,14 +319,12 @@ import org.springframework.cache.annotation.EnableCaching;
 @EnableCaching
 public class Chapter6CacheApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(Chapter6CacheApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(Chapter6CacheApplication.class, args);
+    }
 
 }
 ```
-
-
 
 其次，在Controller层，加入注解
 
@@ -346,8 +338,6 @@ public UserADTO queryUserById(UserADTO userADTO) {
 }
 ```
 
-
-
 #### 注解详解
 
 - `@Cacheable` 用于标记缓存，也就是对使用@Cacheable注解的位置进行缓存
@@ -355,8 +345,6 @@ public UserADTO queryUserById(UserADTO userADTO) {
 - `@CachePut` 只是用于将标记该注解的方法的返回值放入缓存中，无论缓存中是否包含当前缓存，只是以键值的形式将执行结果放入缓存中。在使用方面，@CachePut注解和@Cacheable注解一致
 
 - `@CacheEvict` Spring Cache提供了@CacheEvict注解用于清除缓存数据，与@Cacheable类似，不过@CacheEvict用于方法时清除当前方法的缓存，用于类时清除当前类所有方法的缓存;@CacheEvict除了提供与@Cacheable一致的3个属性外，还提供了一个常用的属性allEntries，这个属性的默认值为false，如果指定属性值为true，就会清除当前value值的所有缓存
-
-
 
 ### Spring Boot整合Redis
 
@@ -366,8 +354,8 @@ public UserADTO queryUserById(UserADTO userADTO) {
 
 ```xml
 <dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-data-redis</artifactId>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
 </dependency>
 ```
 
@@ -376,4 +364,53 @@ public UserADTO queryUserById(UserADTO userADTO) {
 ```properties
 spring.redis.host=localhost
 spring.redis.port=6379
+```
+
+#### `RedisTemplate` 的使用
+
+> 在Redis中，使用的是`RedisTemplate` 类对Redis进行读写删改的操作
+
+- 给Redis读写数据（在测试用例当中）
+
+```java
+@Resource
+private RedisTemplate redisTemplate;
+
+
+/**
+ * Redis写入数据
+ */
+@Test
+public void redisString() {
+    redisTemplate.opsForValue().set("num", 123);
+    redisTemplate.opsForValue().set("string", "some string");
+    Object num = redisTemplate.opsForValue().get("num");
+    Object string = redisTemplate.opsForValue().get("string");
+    System.err.println(num);
+    System.err.println(string);
+}
+```
+
+- 使用构造方法set进行缓存定时删除
+
+```java
+/**
+ * 设置三秒后失效
+ */
+@Test
+public void invaliIn3s() {
+	redisTemplate.opsForValue().set("num", "123XYZ", 3, TimeUnit.SECONDS);
+	try {
+		Object num1 = redisTemplate.opsForVlue().get("num");
+		log.info(num1.toString()); // 123XYZ
+		Thread.sleep(2000);
+		Object num2 = redisTemplate.opsForValue().get("num");
+		log.info(num2.toString()); // 123XYZ
+		Thread.sleep(2000);
+		Object num3 = redisTemplate.opsForValue().get("num");
+		log.info(num3 == null ? "null" : num3.toString()); // null
+	} catch (InterruptedException e) {
+		e.printStackTrace();
+	}
+}
 ```

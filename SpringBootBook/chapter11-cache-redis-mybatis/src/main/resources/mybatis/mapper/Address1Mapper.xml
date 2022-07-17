@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.dao.Address1DAO">
+    <select id="queryAddressList" resultType="com.example.pojo.AddressDTO">
+        select address_no as addressNo,
+               address_name as addressName
+        from address_t
+    </select>
+
+    <select id="queryAddressByAddressNo" resultType="com.example.pojo.AddressDTO">
+        select address_no as addressNo,
+               address_name as addressName
+        from address_t
+        where address_no = #{addressNo}
+    </select>
+</mapper>

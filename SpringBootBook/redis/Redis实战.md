@@ -121,14 +121,145 @@ void setUp() {
 
 ```xml
 <dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-data-redis</artifactId>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
 </dependency>
 <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-pool2 -->
 <!-- 连接池依赖 -->
 <dependency>
-	<groupId>org.apache.commons</groupId>
-	<artifactId>commons-pool2</artifactId>
-	<version>2.11.1</version>
+    <groupId>org.apache.commons</groupId>
+    <artifactId>commons-pool2</artifactId>
+    <version>2.11.1</version>
 </dependency>
+```
+
+### 通过配置文件解除RedisTemplate的默认序列化
+
+#### 配置RedisTemplate
+
+```java
+package com.example.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializer;
+
+@Configuration
+public class RedisConfig {
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) {
+        // 创建RedisTemplate
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        // 设置连接工厂
+        redisTemplate.setConnectionFactory(redisConnectionFactory);
+        // 设置序列化工具
+        GenericJackson2JsonRedisSerializer jsonRedisSerializer = new GenericJackson2JsonRedisSerializer();
+        // key和hashKey采用String序列化
+        redisTemplate.setKeySerializer(RedisSerializer.string());
+        redisTemplate.setHashKeySerializer(RedisSerializer.string());
+        // Value和hashValue使用JSON序列化
+        redisTemplate.setValueSerializer(jsonRedisSerializer);
+        redisTemplate.setHashValueSerializer(jsonRedisSerializer);
+
+        return redisTemplate;
+    }
+}
+
+```
+
+
+
+#### 引入json依赖
+
+> 由于上一步配置文件中使用了json序列化，因此需要引入json依赖，否则会报错
+
+```xml
+<dependency>
+	<groupId>com.fasterxml.jackson.core</groupId>
+	<artifactId>jackson-databind</artifactId>
+</dependency>
+```
+
+
+
+#### 在测试类中引入
+
+```java
+@Resource
+private RedisTemplate<String, Object> redisTemplate;
+```
+
+
+
+#### 存储对象
+
+```java
+/**
+ * 使用序列化存储对象
+ * 在redis中，对象被存储成了json格式
+ */
+@Test
+void saveObject() {
+	redisTemplate.opsForValue().set("user:100", new User("卢本伟", new BigDecimal(19)));
+	User user1 = (User) redisTemplate.opsForValue().get("user1");
+	log.info("user1: {}", user1);
+}
+```
+
+> 存储的对象格式如下，此方法存储有缺点，就是会存储很多无用信息
+
+```json
+{
+  "@class": "com.example.pojo.User",
+  "name": "卢本伟",
+  "age": [
+    "java.math.BigDecimal",
+    19
+  ]
+}
+```
+
+
+
+### StringRedisTemplate
+
+> Spring提供了一个 StringRedisTemplate 类，它的key和value默认使用String字符串的形式，省去了自定义RedisTemplate的过程
+
+#### 使用方法
+
+```java
+@Resource
+private StringRedisTemplate stringRedisTemplate;
+// Spring的序列化工具，用于对象与json的互转
+private static final ObjectMapper mapper = new ObjectMapper();
+
+
+/**
+ * 使用字符串序列化写入对象
+ */
+@Test
+void setObjectTest() throws JsonProcessingException {
+    User user = new User("张伟", new BigDecimal(30));
+    // 序列化对象
+    String userString = mapper.writeValueAsString(user);
+    stringRedisTemplate.opsForValue().set("user:200", userString);
+    String userJson = stringRedisTemplate.opsForValue().get("user:200");
+    // 取出之后需要反序列化
+    User user1 = mapper.readValue(userJson, User.class);
+    log.info("user:200 - {}", user1);
+}
+```
+
+
+
+#### Redis中的对象
+
+```json
+{
+  "name": "张伟",
+  "age": 30
+}
 ```

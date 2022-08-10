@@ -11,5 +11,6 @@
                create_time as createTime,
                update_time as updateTime
         from tb_shop_type
+        order by sort
     </select>
 </mapper>

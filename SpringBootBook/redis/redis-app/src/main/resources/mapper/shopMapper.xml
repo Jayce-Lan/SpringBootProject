@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.ShopMapper">
+    <select id="queryShopById" resultType="com.example.entity.Shop">
+        select id as id,
+               name as name,
+               type_id as typeId,
+               images as images,
+               area as area,
+               address as address,
+               x as x,
+               y as y,
+               avg_price as avgPrice,
+               sold as sold,
+               comments as comments,
+               score as score,
+               open_hours as openHours,
+               create_time as createTime,
+               update_time as updateTime
+        from tb_shop
+        where id = #{id}
+    </select>
+</mapper>

@@ -167,10 +167,7 @@ public class RedisConfig {
         return redisTemplate;
     }
 }
-
 ```
-
-
 
 #### 引入json依赖
 
@@ -178,12 +175,10 @@ public class RedisConfig {
 
 ```xml
 <dependency>
-	<groupId>com.fasterxml.jackson.core</groupId>
-	<artifactId>jackson-databind</artifactId>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
 </dependency>
 ```
-
-
 
 #### 在测试类中引入
 
@@ -191,8 +186,6 @@ public class RedisConfig {
 @Resource
 private RedisTemplate<String, Object> redisTemplate;
 ```
-
-
 
 #### 存储对象
 
@@ -203,9 +196,9 @@ private RedisTemplate<String, Object> redisTemplate;
  */
 @Test
 void saveObject() {
-	redisTemplate.opsForValue().set("user:100", new User("卢本伟", new BigDecimal(19)));
-	User user1 = (User) redisTemplate.opsForValue().get("user1");
-	log.info("user1: {}", user1);
+    redisTemplate.opsForValue().set("user:100", new User("卢本伟", new BigDecimal(19)));
+    User user1 = (User) redisTemplate.opsForValue().get("user1");
+    log.info("user1: {}", user1);
 }
 ```
 
@@ -221,8 +214,6 @@ void saveObject() {
   ]
 }
 ```
-
-
 
 ### StringRedisTemplate
 
@@ -252,8 +243,6 @@ void setObjectTest() throws JsonProcessingException {
     log.info("user:200 - {}", user1);
 }
 ```
-
-
 
 #### Redis中的对象
 

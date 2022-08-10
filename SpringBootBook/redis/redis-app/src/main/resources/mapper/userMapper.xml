@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.UserMapper">
+    <insert id="addUser">
+        insert into tb_user(id, phone, password, nick_name, icon, create_time, update_time)
+        VALUES
+        (
+            #{id},
+            #{phone},
+            #{password},
+            #{nickName},
+            #{icon},
+            now(),
+            now()
+        )
+    </insert>
+
+    <select id="queryUserInfo" resultType="com.example.entity.User">
+        select id as id,
+               phone as phone,
+               password as password,
+               nick_name as nickName,
+               icon as icon,
+               create_time as createTime,
+               update_time as updateTime
+        from tb_user
+        where phone = #{phone}
+    </select>
+</mapper>

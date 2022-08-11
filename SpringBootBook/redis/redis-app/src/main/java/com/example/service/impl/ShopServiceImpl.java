@@ -1,5 +1,6 @@
 package com.example.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.example.dto.Result;
 import com.example.entity.Shop;
@@ -46,6 +47,42 @@ public class ShopServiceImpl implements ShopService {
                 RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
         return Result.ok(shop);
     }
+
+    /**
+     * 缓存穿透
+     * 使用redis承载空值，防止接口被恶意刷新，重复查询数据库
+     * 如果查询结果为空，那么将此结果写入redis
+     * @param id
+     * @return
+     */
+    @Override
+    public Result queryShopById2(Long id) {
+        // 查询缓存中的shop
+        String shopJson = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_SHOP_KEY + id);
+        // 如果存在，直接返回
+        if (StrUtil.isNotBlank(shopJson)) {
+            Shop shop = JSONObject.parseObject(shopJson, Shop.class);
+            return Result.ok(shop);
+        }
+
+        // 如果shopjson为空白，但是又不为null，即存在键值对，说明为空值
+        if (shopJson != null) {
+            return Result.fail("店铺不存在！");
+        }
+
+        // 如果缓存中不存在，则查库
+        Shop shop = shopMapper.queryShopById(id);
+        // 如果店铺为空，写入缓存，2min过期
+        if (shop == null) {
+            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, "",
+                    RedisConstants.CACHE_NULL_TTL, TimeUnit.MINUTES);
+            return Result.fail("店铺不存在！");
+        }
+        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, JSONObject.toJSONString(shop),
+                RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        return Result.ok(shop);
+    }
+
 
     /**
      * 不封装方法的情况下实现更新数据库后更新缓存

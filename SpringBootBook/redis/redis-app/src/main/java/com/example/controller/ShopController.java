@@ -25,7 +25,7 @@ public class ShopController {
     @RequestMapping("/{id}")
     public Result queryShopById(@PathVariable("id") Long id) {
         log.info("id: {}", id);
-        return shopService.queryShopById2(id);
+        return shopService.queryShopById3(id);
     }
 
     /**

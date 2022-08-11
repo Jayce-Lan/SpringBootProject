@@ -1,5 +1,6 @@
 package com.example.service.impl;
 
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.example.dto.Result;
@@ -83,6 +84,18 @@ public class ShopServiceImpl implements ShopService {
         return Result.ok(shop);
     }
 
+    @Override
+    public Result queryShopById3(Long id) {
+        // 缓存穿透
+//        Shop shop = queryWithPassThrough(id);
+        // 互斥锁处理缓存击穿
+        Shop shop = queryWithMutex(id);
+        if (shop == null) {
+            Result.fail("店铺不存在!");
+        }
+        return Result.ok(shop);
+    }
+
 
     /**
      * 不封装方法的情况下实现更新数据库后更新缓存
@@ -104,5 +117,114 @@ public class ShopServiceImpl implements ShopService {
         // 删除缓存信息
         stringRedisTemplate.delete(RedisConstants.CACHE_SHOP_KEY + id);
         return Result.ok("更新成功！");
+    }
+
+    /**
+     * 使用互斥锁来解决缓存击穿的问题
+     * 获取锁
+     * @param key
+     * @return
+     */
+    private boolean tryLock(String key) {
+        // 10s过期，使用setnx的特性进行互斥锁
+        Boolean flage = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", RedisConstants.LOCK_SHOP_TTL, TimeUnit.SECONDS);
+        return BooleanUtil.isTrue(flage);
+    }
+
+    /**
+     * 释放锁
+     * @param key
+     */
+    private void unLock(String key) {
+        stringRedisTemplate.delete(key);
+    }
+
+    /**
+     * 缓存穿透
+     * @param id
+     * @return
+     */
+    private Shop queryWithPassThrough(Long id) {
+        // 查询缓存中的shop
+        String shopJson = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_SHOP_KEY + id);
+        // 如果存在，直接返回
+        if (StrUtil.isNotBlank(shopJson)) {
+            Shop shop = JSONObject.parseObject(shopJson, Shop.class);
+            return shop;
+        }
+
+        // 如果shopjson为空白，但是又不为null，即存在键值对，说明为空值
+        if (shopJson != null) {
+            return null;
+        }
+
+        // 如果缓存中不存在，则查库
+        Shop shop = shopMapper.queryShopById(id);
+        // 如果店铺为空，写入缓存，2min过期
+        if (shop == null) {
+            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, "",
+                    RedisConstants.CACHE_NULL_TTL, TimeUnit.MINUTES);
+            return null;
+        }
+        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, JSONObject.toJSONString(shop),
+                RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        return shop;
+    }
+
+    /**
+     * 互斥锁
+     * 处理缓存击穿
+     * @param id
+     * @return
+     */
+    private Shop queryWithMutex(Long id) {
+        // 查询缓存中的shop
+        String shopJson = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_SHOP_KEY + id);
+        // 如果存在，直接返回
+        if (StrUtil.isNotBlank(shopJson)) {
+            Shop shop = JSONObject.parseObject(shopJson, Shop.class);
+            return shop;
+        }
+
+        // 如果shopjson为空白，但是又不为null，即存在键值对，说明为空值
+        if (shopJson != null) {
+            return null;
+        }
+
+        // 实现缓存重建
+        Shop shop = null;
+        try {
+            // 1、获取互斥锁
+            boolean flag = tryLock(RedisConstants.LOCK_SHOP_KEY + id);
+            // 2、判断是否获取成功
+            if (!flag) {
+                // 3、失败，休眠并重建
+                Thread.sleep(50);
+                // 重试
+                return queryWithMutex(id);
+            }
+
+            // 如果缓存中不存在，则查库
+            shop = shopMapper.queryShopById(id);
+            // 模拟重建延迟
+            Thread.sleep(200);
+
+            // 如果店铺为空，写入缓存，2min过期
+            if (shop == null) {
+                stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, "",
+                        RedisConstants.CACHE_NULL_TTL, TimeUnit.MINUTES);
+                return null;
+            }
+            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, JSONObject.toJSONString(shop),
+                    RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
+
+            // 4、释放互斥锁
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            unLock(RedisConstants.LOCK_SHOP_KEY + id);
+        }
+
+        return shop;
     }
 }

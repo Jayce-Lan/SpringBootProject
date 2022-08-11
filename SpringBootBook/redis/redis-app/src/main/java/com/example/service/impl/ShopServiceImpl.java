@@ -86,8 +86,6 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public Result queryShopById3(Long id) {
-        // 缓存穿透
-//        Shop shop = queryWithPassThrough(id);
         // 互斥锁处理缓存击穿
         Shop shop = queryWithMutex(id);
         if (shop == null) {
@@ -137,38 +135,6 @@ public class ShopServiceImpl implements ShopService {
      */
     private void unLock(String key) {
         stringRedisTemplate.delete(key);
-    }
-
-    /**
-     * 缓存穿透
-     * @param id
-     * @return
-     */
-    private Shop queryWithPassThrough(Long id) {
-        // 查询缓存中的shop
-        String shopJson = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_SHOP_KEY + id);
-        // 如果存在，直接返回
-        if (StrUtil.isNotBlank(shopJson)) {
-            Shop shop = JSONObject.parseObject(shopJson, Shop.class);
-            return shop;
-        }
-
-        // 如果shopjson为空白，但是又不为null，即存在键值对，说明为空值
-        if (shopJson != null) {
-            return null;
-        }
-
-        // 如果缓存中不存在，则查库
-        Shop shop = shopMapper.queryShopById(id);
-        // 如果店铺为空，写入缓存，2min过期
-        if (shop == null) {
-            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, "",
-                    RedisConstants.CACHE_NULL_TTL, TimeUnit.MINUTES);
-            return null;
-        }
-        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, JSONObject.toJSONString(shop),
-                RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
-        return shop;
     }
 
     /**

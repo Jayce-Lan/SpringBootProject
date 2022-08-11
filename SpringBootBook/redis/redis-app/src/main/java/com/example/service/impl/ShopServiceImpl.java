@@ -173,7 +173,7 @@ public class ShopServiceImpl implements ShopService {
             // 如果缓存中不存在，则查库
             shop = shopMapper.queryShopById(id);
             // 模拟重建延迟
-            Thread.sleep(200);
+//            Thread.sleep(200);
 
             // 如果店铺为空，写入缓存，2min过期
             if (shop == null) {
@@ -183,11 +183,10 @@ public class ShopServiceImpl implements ShopService {
             }
             stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + id, JSONObject.toJSONString(shop),
                     RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
-
-            // 4、释放互斥锁
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } finally {
+            // 4、释放互斥锁
             unLock(RedisConstants.LOCK_SHOP_KEY + id);
         }
 

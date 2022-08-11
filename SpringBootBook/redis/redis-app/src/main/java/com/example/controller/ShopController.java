@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.example.dto.Result;
 import com.example.entity.Shop;
+import com.example.service.ShopLogicalExpireService;
 import com.example.service.ShopService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,10 +23,14 @@ public class ShopController {
     @Resource
     ShopService shopService;
 
+    @Resource
+    ShopLogicalExpireService shopLogicalExpireService;
+
     @RequestMapping("/{id}")
     public Result queryShopById(@PathVariable("id") Long id) {
         log.info("id: {}", id);
-        return shopService.queryShopById3(id);
+//        return shopService.queryShopById3(id);
+        return shopLogicalExpireService.queryShopByIdLogicalExpire(id);
     }
 
     /**

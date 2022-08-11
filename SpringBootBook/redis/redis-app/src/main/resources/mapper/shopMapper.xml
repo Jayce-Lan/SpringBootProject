@@ -3,6 +3,22 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.mapper.ShopMapper">
+    <update id="updateShopById">
+        update tb_shop set name = #{name}
+                           ,type_id = #{typeId}
+                           ,images = #{images}
+                           ,area = #{area}
+                           ,address = #{address}
+                           ,x = #{x}
+                           ,y = #{y}
+                           ,avg_price = #{avgPrice}
+                           ,sold = #{sold}
+                           ,comments = #{comments}
+                           ,score = #{score}
+                           ,open_hours = #{openHours}
+                           ,update_time = #{updateTime}
+        where id = #{id}
+    </update>
     <select id="queryShopById" resultType="com.example.entity.Shop">
         select id as id,
                name as name,

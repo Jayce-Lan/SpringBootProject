@@ -84,10 +84,15 @@ public class UserServiceImpl implements UserService {
         String token = UUID.randomUUID().toString();
         // 将user对象转为HashMap存储
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-        Map<String, Object> userMap = new HashMap<>();
-        userMap.put("id", userDTO.getId().toString());
-        userMap.put("nickName", userDTO.getNickName());
-        userMap.put("icon", userDTO.getIcon());
+//        Map<String, Object> userMap = new HashMap<>();
+//        userMap.put("id", userDTO.getId().toString());
+//        userMap.put("nickName", userDTO.getNickName());
+//        userMap.put("icon", userDTO.getIcon());
+        // 由于 id中的 Long类型无法进行转换，因此要对map中的类型做转String操作
+        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
+                CopyOptions.create()
+                        .setIgnoreNullValue(true)
+                        .setFieldValueEditor((key, value) -> value.toString()));
 
         // 存储
         String tokenKey = RedisConstants.LOGIN_USER_KEY + token;

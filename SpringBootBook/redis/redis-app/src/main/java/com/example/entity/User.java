@@ -34,6 +34,7 @@ public class User implements Serializable {
 
     /**
      * 用户头像
+     * 该参数对于缓存为必传，但是有可能为null导致空指针异常，因此给定默认值，防止空指针异常
      */
     private String icon = "";
 

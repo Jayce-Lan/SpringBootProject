@@ -22,6 +22,9 @@ public class RedisConstants {
     public static final String USER_SIGN_KEY = "sign:";
 
 
+    public static final String INCR_ID_KEY = "incr:";
+
+
     // 用于Redis生成数据库主键的键
     public static final String USER_LOGIN_ID = "USER_LOGIN_ID";
 }

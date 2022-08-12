@@ -159,6 +159,54 @@ public class CacheClient {
     }
 
     /**
+     * 封装互斥锁的方法
+     * @param keyPrefix
+     * @param id
+     * @param type
+     * @param dbFallBack
+     * @param time
+     * @param timeUnit
+     * @param <R>
+     * @param <ID>
+     * @return
+     */
+    public <R, ID> R queryWithMutex(String keyPrefix, ID id, Class<R> type,
+                                    Function<ID, R> dbFallBack, Long time, TimeUnit timeUnit) {
+        String key = keyPrefix + id;
+        String json = stringRedisTemplate.opsForValue().get(key);
+        if (StrUtil.isNotBlank(json)) {
+            return JSONObject.parseObject(json, type);
+        }
+        if (json != null) {
+            return null;
+        }
+
+        String lockKey = RedisConstants.LOCK_SHOP_KEY + id;
+        R r = null;
+        try {
+            boolean lockFlag = tryLock(lockKey);
+            if (!lockFlag) {
+                // 如果获取锁失败，休眠50ms重试
+                Thread.sleep(50);
+                return queryWithMutex(keyPrefix, id, type, dbFallBack, time, timeUnit);
+            }
+            r = dbFallBack.apply(id);
+            // 不存在，则写入空值后返回
+            if (r == null) {
+                stringRedisTemplate.opsForValue().set(key, "", RedisConstants.CACHE_NULL_TTL, TimeUnit.MINUTES);
+                return null;
+            }
+            // 存在写入redis
+            this.set(key, r, time, timeUnit);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            unLock(lockKey);
+        }
+        return  r;
+    }
+
+    /**
      * 使用互斥锁来解决缓存击穿的问题
      * 获取锁
      * @param key

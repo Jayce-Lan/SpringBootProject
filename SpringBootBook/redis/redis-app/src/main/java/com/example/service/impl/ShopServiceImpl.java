@@ -7,6 +7,7 @@ import com.example.dto.Result;
 import com.example.entity.Shop;
 import com.example.mapper.ShopMapper;
 import com.example.service.ShopService;
+import com.example.utils.CacheClient;
 import com.example.utils.RedisConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -23,6 +24,8 @@ public class ShopServiceImpl implements ShopService {
     StringRedisTemplate stringRedisTemplate;
     @Resource
     ShopMapper shopMapper;
+    @Resource
+    CacheClient cacheClient;
 
     /**
      * 不封装方法的实现
@@ -90,6 +93,34 @@ public class ShopServiceImpl implements ShopService {
         Shop shop = queryWithMutex(id);
         if (shop == null) {
             Result.fail("店铺不存在!");
+        }
+        return Result.ok(shop);
+    }
+
+    /**
+     * 用于测试封装方法的方法
+     * @param id
+     * @return
+     */
+    @Override
+    public Result queryShopByIdTest(Long id) {
+        // 模拟防止缓存击穿
+        /*Shop shop = cacheClient.queryWithPassThrough(RedisConstants.CACHE_SHOP_KEY,
+                id,
+                Shop.class,
+                id2 -> shopMapper.queryShopById(id2),
+                RedisConstants.CACHE_SHOP_TTL,
+                TimeUnit.MINUTES);*/
+
+        // 模拟逻辑过期
+        Shop shop = cacheClient.queryWithLogicalExpire(RedisConstants.CACHE_SHOP_KEY,
+                id,
+                Shop.class,
+                id2 -> shopMapper.queryShopById(id2),
+                RedisConstants.LOCK_SHOP_TTL,
+                TimeUnit.SECONDS);
+        if (shop == null) {
+            return Result.fail("店铺不存在！");
         }
         return Result.ok(shop);
     }

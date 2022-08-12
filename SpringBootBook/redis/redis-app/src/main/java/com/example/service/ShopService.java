@@ -8,5 +8,7 @@ public interface ShopService {
     Result queryShopById2(Long id);
     Result queryShopById3(Long id);
 
+    Result queryShopByIdTest(Long id);
+
     Result updateShopById1(Shop shop) throws Exception;
 }

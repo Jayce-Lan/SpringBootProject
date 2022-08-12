@@ -30,7 +30,8 @@ public class ShopController {
     public Result queryShopById(@PathVariable("id") Long id) {
         log.info("id: {}", id);
 //        return shopService.queryShopById3(id);
-        return shopLogicalExpireService.queryShopByIdLogicalExpire(id);
+//        return shopLogicalExpireService.queryShopByIdLogicalExpire(id);
+        return shopService.queryShopByIdTest(id);
     }
 
     /**

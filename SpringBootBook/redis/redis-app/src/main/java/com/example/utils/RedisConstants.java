@@ -27,4 +27,12 @@ public class RedisConstants {
 
     // 用于Redis生成数据库主键的键
     public static final String USER_LOGIN_ID = "USER_LOGIN_ID";
+    // 订单id
+    public static final String ORDER_ID = "ORDER_ID";
+
+
+    /**
+     * 模拟一个全局的userid
+     */
+    public static final Long IMITATE_USER_ID = 1027L;
 }

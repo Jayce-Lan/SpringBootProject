@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.VoucherOrderMapper">
+    <insert id="addVoucherOrder">
+        insert into tb_voucher_order(id, user_id, voucher_id, pay_type, status,
+                                     create_time,
+                                     update_time
+                                     )
+        VALUES
+    (
+            #{id},
+            #{userId},
+            #{voucherId},
+            #{payType},
+            #{status},
+            now(),
+            now()
+    )
+    </insert>
+    <update id="updateSeckillVoucherById">
+        update tb_seckill_voucher set stock = (stock - 1)
+        where voucher_id = #{id}
+    </update>
+
+    <select id="querySeckillVoucherById" resultType="com.example.entity.SeckillVoucher">
+        select voucher_id as voucherId,
+               stock as stock,
+               create_time as createTime,
+               begin_time as beginTime,
+               end_time as endTime,
+               update_time as updateTime
+        from tb_seckill_voucher
+        where voucher_id = #{id}
+    </select>
+</mapper>

@@ -25,7 +25,7 @@ public class RedisIdWorkerApplicationTests {
 
     @Test
     void testTime() {
-        LocalDateTime localDateTime = LocalDateTime.of(2022, 1, 1, 0, 0 ,0);
+        LocalDateTime localDateTime = LocalDateTime.of(2022, 8, 13, 0, 0 ,0);
         long second = localDateTime.toEpochSecond(ZoneOffset.UTC);
         log.info("second: {}", second);
     }

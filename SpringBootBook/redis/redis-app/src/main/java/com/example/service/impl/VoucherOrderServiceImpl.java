@@ -26,27 +26,35 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
     @Resource
     RedisIdWorker redisIdWorker;
 
+    /**
+     * 超卖问题
+     *
+     * 基于秒杀业务实现流程
+     * 该方法为直接查库，会存在超卖问题
+     * @param voucherId
+     * @return
+     */
     @Override
     public Result seckillVoucher(Long voucherId) {
         // 查询秒杀券信息
         SeckillVoucher seckillVoucher = voucherOrderMapper.querySeckillVoucherById(voucherId);
         if (seckillVoucher == null) {
-            throw new RuntimeException("无优惠券信息！");
+            return Result.fail("无优惠券信息");
         }
         // 查询秒杀是否开始
         if (seckillVoucher.getBeginTime().isAfter(LocalDateTime.now())) {
-            throw new RuntimeException("秒杀未开始！");
+            return Result.fail("秒杀未开始");
         }
         // 查询秒杀是否结束
         if (seckillVoucher.getEndTime().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("秒杀已结束！");
+            return Result.fail("秒杀已结束");
         }
         // 查询库存是否充足
         if (seckillVoucher.getStock() < 1) {
-            throw new RuntimeException("库存不足！");
+            return Result.fail("库存不足!");
         }
         // 扣件库存
-        int count = voucherOrderMapper.updateSeckillVoucherById(voucherId);
+        int count = voucherOrderMapper.updateSeckillVoucherById(seckillVoucher);
         if (count != 1) {
             throw new RuntimeException("库存扣件失败！");
         }
@@ -58,8 +66,6 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         voucherOrder.setId(orderId);
         voucherOrder.setVoucherId(voucherId);
         voucherOrder.setUserId(RedisConstants.IMITATE_USER_ID);
-        voucherOrder.setPayType(1);
-        voucherOrder.setStatus(1);
 
         int count1 = voucherOrderMapper.addVoucherOrder(voucherOrder);
         if (count1 != 1) {

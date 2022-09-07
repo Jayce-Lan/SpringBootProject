@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.mapper.VoucherOrderMapper">
     <insert id="addVoucherOrder">
-        insert into tb_voucher_order(id, user_id, voucher_id, pay_type, status,
+        insert into tb_voucher_order(id, user_id, voucher_id,
                                      create_time,
                                      update_time
                                      )
@@ -13,15 +13,18 @@
             #{id},
             #{userId},
             #{voucherId},
-            #{payType},
-            #{status},
             now(),
             now()
     )
     </insert>
     <update id="updateSeckillVoucherById">
         update tb_seckill_voucher set stock = (stock - 1)
-        where voucher_id = #{id}
+        where voucher_id = #{voucherId}
+          <!-- 悲观锁，牺牲性能获取准确性 -->
+        and stock > 0
+          <!-- 乐观锁：准确性低，但是性能高
+          增加查询条件，以保证不会出现超卖情况 -->
+        <!-- and stock = #{stock} -->
     </update>
 
     <select id="querySeckillVoucherById" resultType="com.example.entity.SeckillVoucher">

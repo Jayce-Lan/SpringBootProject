@@ -18,7 +18,7 @@ public interface VoucherOrderMapper {
      * @param id
      * @return
      */
-    int updateSeckillVoucherById(Long id);
+    int updateSeckillVoucherById(SeckillVoucher seckillVoucher);
 
     /**
      * 新建订单信息

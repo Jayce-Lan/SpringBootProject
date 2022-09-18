@@ -4,6 +4,8 @@ import com.example.entity.SeckillVoucher;
 import com.example.entity.VoucherOrder;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.util.List;
+
 @Mapper
 public interface VoucherOrderMapper {
     /**
@@ -15,7 +17,7 @@ public interface VoucherOrderMapper {
 
     /**
      * 更改库存
-     * @param id
+     * @param seckillVoucher
      * @return
      */
     int updateSeckillVoucherById(SeckillVoucher seckillVoucher);
@@ -26,4 +28,11 @@ public interface VoucherOrderMapper {
      * @return
      */
     int addVoucherOrder(VoucherOrder voucherOrder);
+
+    /**
+     * 根据用户id和订单id查询是否存在，用于校验一人一单
+     * @param voucherOrder 只需要userId和voucherId
+     * @return
+     */
+    List<VoucherOrder> queryVoucherOrderByUserIdAndVoucherId(VoucherOrder voucherOrder);
 }

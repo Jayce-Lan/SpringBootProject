@@ -37,4 +37,14 @@
         from tb_seckill_voucher
         where voucher_id = #{id}
     </select>
+    <select id="queryVoucherOrderByUserIdAndVoucherId" resultType="com.example.entity.VoucherOrder">
+        select id AS id,
+               user_id AS userId,
+               voucher_id AS voucherId,
+               create_time AS createTime,
+               update_time AS updateTime
+        from tb_voucher_order
+        where user_id = #{userId}
+        and voucher_id = #{voucherId}
+    </select>
 </mapper>

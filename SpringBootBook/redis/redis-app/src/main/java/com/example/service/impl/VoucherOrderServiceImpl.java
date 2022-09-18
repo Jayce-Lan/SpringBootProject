@@ -7,15 +7,16 @@ import com.example.mapper.VoucherOrderMapper;
 import com.example.service.VoucherOrderService;
 import com.example.utils.RedisConstants;
 import com.example.utils.RedisIdWorker;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service("voucherOrderService")
-@Transactional
 public class VoucherOrderServiceImpl implements VoucherOrderService {
     @Resource
     VoucherOrderMapper voucherOrderMapper;
@@ -28,9 +29,10 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
 
     /**
      * 超卖问题
-     *
+     * <p>
      * 基于秒杀业务实现流程
      * 该方法为直接查库，会存在超卖问题
+     *
      * @param voucherId
      * @return
      */
@@ -53,19 +55,42 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         if (seckillVoucher.getStock() < 1) {
             return Result.fail("库存不足!");
         }
-        // 扣件库存
-        int count = voucherOrderMapper.updateSeckillVoucherById(seckillVoucher);
-        if (count != 1) {
-            throw new RuntimeException("库存扣件失败！");
+        Long userId = RedisConstants.IMITATE_USER_ID;
+        synchronized (userId.toString().intern()) {
+            // 使用代理对象防止下方方法事务失效
+            VoucherOrderService proxy = (VoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucher(voucherId, seckillVoucher);
         }
+    }
 
+    /**
+     * 将事务方法单独提取出来
+     * @param voucherId
+     * @param seckillVoucher
+     * @return
+     */
+    @Override
+    @Transactional
+    public Result createVoucher(Long voucherId, SeckillVoucher seckillVoucher) {
+        Long userId = RedisConstants.IMITATE_USER_ID;
         // 创建订单
         VoucherOrder voucherOrder = new VoucherOrder();
         // 订单id
         long orderId = redisIdWorker.nextId(RedisConstants.ORDER_ID);
         voucherOrder.setId(orderId);
         voucherOrder.setVoucherId(voucherId);
-        voucherOrder.setUserId(RedisConstants.IMITATE_USER_ID);
+        voucherOrder.setUserId(userId);
+
+        // 一人一单
+        List<VoucherOrder> voucherOrders = voucherOrderMapper.queryVoucherOrderByUserIdAndVoucherId(voucherOrder);
+        if (voucherOrders.size() > 0) {
+            return Result.fail("用户已经参与过秒杀！");
+        }
+        // 扣件库存
+        int count = voucherOrderMapper.updateSeckillVoucherById(seckillVoucher);
+        if (count != 1) {
+            throw new RuntimeException("库存扣件失败！");
+        }
 
         int count1 = voucherOrderMapper.addVoucherOrder(voucherOrder);
         if (count1 != 1) {

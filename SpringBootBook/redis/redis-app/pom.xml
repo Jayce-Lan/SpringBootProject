@@ -78,6 +78,15 @@
 			<version>1.2.83</version>
 		</dependency>
 
+		<!-- Redis官方工具 redisson  -->
+		<!-- 在这里不建议使用starter的配置，因为会和Redis配置混淆 -->
+		<!-- https://mvnrepository.com/artifact/org.redisson/redisson -->
+		<dependency>
+			<groupId>org.redisson</groupId>
+			<artifactId>redisson</artifactId>
+			<version>3.16.1</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

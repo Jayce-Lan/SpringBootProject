@@ -18,4 +18,6 @@ public interface VoucherOrderService {
      * @return
      */
     Result seckillVoucherByRedisLock(Long voucherId);
+
+    Result seckillVoucherByRedisson(Long voucherId) throws InterruptedException;
 }

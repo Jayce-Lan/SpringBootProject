@@ -20,7 +20,7 @@ public class VoucherOrderController {
     VoucherOrderService voucherOrderService;
 
     @GetMapping("seckill/{id}")
-    public Result seckillVoucher(@PathVariable("id") Long voucherId) {
-        return voucherOrderService.seckillVoucherByRedisLock(voucherId);
+    public Result seckillVoucher(@PathVariable("id") Long voucherId) throws InterruptedException {
+        return voucherOrderService.seckillVoucherByRedisson(voucherId);
     }
 }

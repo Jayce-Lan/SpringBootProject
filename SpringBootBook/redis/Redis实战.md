@@ -252,3 +252,105 @@ void setObjectTest() throws JsonProcessingException {
   "age": 30
 }
 ```
+
+
+
+## Redisson快速入门
+
+### 使用Redisson实现分布式锁
+
+#### 引入依赖
+
+> 值得注意的是，Redisson也有starter依赖，但是会出现与Redis本身的配置会有冲突的可能，因此建议使用redisson，并使用配置类来注入依赖
+
+```xml
+<!-- Redis官方工具 redisson  -->
+<!-- 在这里不建议使用starter的配置，因为会和Redis配置混淆 -->
+<!-- https://mvnrepository.com/artifact/org.redisson/redisson -->
+<dependency>
+	<groupId>org.redisson</groupId>
+	<artifactId>redisson</artifactId>
+	<version>3.16.1</version>
+</dependency>
+```
+
+
+
+#### 配置 Config 文件
+
+> 在配置文件的过程中，其实注入的是 `RedissonClient`  这个类。值得注意的是， `Config` 类要引入redisson中的类
+
+```java
+package com.example.config;
+
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * 用于配置Redisson客户端的配置类
+ */
+
+@Configuration
+public class RedisConfig {
+    @Bean
+    public RedissonClient redissonClient() {
+        // 配置类
+        Config config = new Config();
+        // 添加redis地址，也可以使用 config.useClusterServers() 添加集群地址
+        config.useSingleServer().setAddress("redis://127.0.0.1:6379").setDatabase(1);
+        // 创建客户端
+        return Redisson.create(config);
+    }
+}
+
+```
+
+
+
+#### 实际使用
+
+> 实际业务使用可以看 redis-app中 `VoucherOrderServiceImpl`  中的 `seckillVoucherByRedisson` 方法
+
+```java
+package com.example;
+
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Test;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
+
+@SpringBootTest
+@Slf4j
+public class RedissonTests {
+    @Resource
+    private RedissonClient redissonClient;
+
+    /**
+     * 基于 redisson 实现分布式锁
+     * @throws InterruptedException
+     */
+    @Test
+    void testRedisson() throws InterruptedException {
+        // 获取锁（可重入），指定锁的名称
+        RLock rLock = redissonClient.getLock("testLock");
+        // 尝试获取锁，参数分别为：获取锁的最大等待时间（期间会重试），锁自动释放时间，时间单位
+        boolean lockFlag = rLock.tryLock(1, 10, TimeUnit.SECONDS);
+        if (lockFlag) {
+            try {
+                log.info("执行业务");
+            } finally {
+                // 释放锁
+                rLock.unlock();
+            }
+        }
+    }
+}
+
+```

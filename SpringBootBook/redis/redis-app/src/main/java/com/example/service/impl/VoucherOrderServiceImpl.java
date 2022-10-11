@@ -1,5 +1,6 @@
 package com.example.service.impl;
 
+import com.example.config.RedisConfig;
 import com.example.dto.Result;
 import com.example.entity.SeckillVoucher;
 import com.example.entity.VoucherOrder;
@@ -8,6 +9,8 @@ import com.example.service.VoucherOrderService;
 import com.example.utils.RedisConstants;
 import com.example.utils.RedisIdWorker;
 import com.example.utils.SimpleRedisLock;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -16,17 +19,22 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service("voucherOrderService")
 public class VoucherOrderServiceImpl implements VoucherOrderService {
     @Resource
-    VoucherOrderMapper voucherOrderMapper;
+    private VoucherOrderMapper voucherOrderMapper;
 
     @Resource
-    StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
+
+    // 这里的 RedissonClient 是基于 RedisConfig配置好的Redisson
+    @Resource
+    private RedissonClient redissonClient;
 
     @Resource
-    RedisIdWorker redisIdWorker;
+    private RedisIdWorker redisIdWorker;
 
     /**
      * 超卖问题
@@ -143,6 +151,53 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         } finally {
             // 释放锁
             lock.unLock();
+        }
+    }
+
+    /**
+     * 使用Redis提供的Redisson实现分布式锁
+     * @param voucherId
+     * @return
+     */
+    @Override
+    public Result seckillVoucherByRedisson(Long voucherId) throws InterruptedException {
+        // 查询秒杀券信息
+        SeckillVoucher seckillVoucher = voucherOrderMapper.querySeckillVoucherById(voucherId);
+        if (seckillVoucher == null) {
+            return Result.fail("无优惠券信息");
+        }
+        // 查询秒杀是否开始
+        if (seckillVoucher.getBeginTime().isAfter(LocalDateTime.now())) {
+            return Result.fail("秒杀未开始");
+        }
+        // 查询秒杀是否结束
+        if (seckillVoucher.getEndTime().isBefore(LocalDateTime.now())) {
+            return Result.fail("秒杀已结束");
+        }
+        // 查询库存是否充足
+        if (seckillVoucher.getStock() < 1) {
+            return Result.fail("库存不足!");
+        }
+        Long userId = RedisConstants.IMITATE_USER_ID;
+
+        // 创建锁对象
+        RLock lock = redissonClient.getLock("lock:order:" + userId);
+        // 获取锁
+//        boolean isLock = lock.tryLock(1, 10, TimeUnit.SECONDS);
+        // 默认不重复调用，调用失败即返回失败
+        boolean isLock = lock.tryLock();
+        // 判断是否获取锁成功
+        if (!isLock) {
+            //  获取失败，返回失败
+            return Result.fail("不允许重复下单");
+        }
+        try {
+            // 使用代理对象防止下方方法事务失效
+            VoucherOrderService proxy = (VoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucher(voucherId, seckillVoucher);
+        } finally {
+            // 释放锁
+            lock.unlock();
         }
     }
 }

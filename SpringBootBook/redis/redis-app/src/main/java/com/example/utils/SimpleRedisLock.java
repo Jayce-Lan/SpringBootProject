@@ -27,7 +27,7 @@ public class SimpleRedisLock implements ILock {
         // 获取锁，如果锁不存在才执行操作
         Boolean tryLockFlag = this.stringRedisTemplate.opsForValue().setIfAbsent(KEY_PREFIX + lockName, threadId + "", timeoutSec, TimeUnit.SECONDS);
         // 防止出现空指针
-        return tryLockFlag.TRUE.equals(true);
+        return Boolean.TRUE.equals(tryLockFlag);
     }
 
     @Override

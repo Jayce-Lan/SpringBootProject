@@ -21,6 +21,6 @@ public class VoucherOrderController {
 
     @GetMapping("seckill/{id}")
     public Result seckillVoucher(@PathVariable("id") Long voucherId) {
-        return voucherOrderService.seckillVoucher(voucherId);
+        return voucherOrderService.seckillVoucherByRedisLock(voucherId);
     }
 }

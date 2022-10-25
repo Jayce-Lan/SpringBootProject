@@ -115,6 +115,12 @@ void setUp() {
 
 其余使用与上面的直连一致
 
+
+
+--- 
+
+
+
 ## SpringDataRedis
 
 项目整合
@@ -255,6 +261,10 @@ void setObjectTest() throws JsonProcessingException {
 
 
 
+---
+
+
+
 ## Redisson快速入门
 
 ### 使用Redisson实现分布式锁
@@ -268,13 +278,11 @@ void setObjectTest() throws JsonProcessingException {
 <!-- 在这里不建议使用starter的配置，因为会和Redis配置混淆 -->
 <!-- https://mvnrepository.com/artifact/org.redisson/redisson -->
 <dependency>
-	<groupId>org.redisson</groupId>
-	<artifactId>redisson</artifactId>
-	<version>3.16.1</version>
+    <groupId>org.redisson</groupId>
+    <artifactId>redisson</artifactId>
+    <version>3.16.1</version>
 </dependency>
 ```
-
-
 
 #### 配置 Config 文件
 
@@ -305,10 +313,7 @@ public class RedisConfig {
         return Redisson.create(config);
     }
 }
-
 ```
-
-
 
 #### 实际使用
 
@@ -352,5 +357,10 @@ public class RedissonTests {
         }
     }
 }
+```
 
+值得注意的是，上述方法中，如果`tryLock` 使用下述写法，那么将不再重试，直接按照调用的返回进行处理
+
+```java
+boolean lockFlag = rLock.tryLock();
 ```

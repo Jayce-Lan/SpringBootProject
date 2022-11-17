@@ -59,4 +59,40 @@ public class RabbitmqConst {
      * 交换机名称
      */
     public static final String FANOUT_EXCHANGE = "fanoutExchange";
+
+    /**
+     * 发布订阅模式
+     * 队列名称
+     */
+    public static final String TOPIC_QUEUE_1 = "topic.queue1";
+    /**
+     * 发布订阅模式
+     * 队列名称
+     */
+    public static final String TOPIC_QUEUE_2 = "topic.queue2";
+    /**
+     * 发布订阅模式
+     * 队列名称
+     */
+    public static final String TOPIC_QUEUE_3 = "topic.queue3";
+    /**
+     * 发布订阅模式
+     * 交换机
+     */
+    public static final String TOPIC_EXCHANGE = "topicExchange";
+    /**
+     * 发布订阅模式
+     * 规则1
+     */
+    public static final String TOPIC_RULE_1 = "topic.color.*";
+    /**
+     * 发布订阅模式
+     * 规则2
+     */
+    public static final String TOPIC_RULE_2 = "topic.#";
+    /**
+     * 发布订阅模式
+     * 规则3
+     */
+    public static final String TOPIC_RULE_3 = "topic.msg.*";
 }

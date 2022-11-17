@@ -38,4 +38,25 @@ public class RabbitmqConst {
      * 路由模式，交换机名称
      */
     public static final String DIRECT_EXCHANGE_NAME = "directExchange";
+
+    /**
+     * 广播模式
+     * 队列1
+     */
+    public static final String FANOUT_Q1 = "fanout.Q1";
+    /**
+     * 广播模式
+     * 队列2
+     */
+    public static final String FANOUT_Q2 = "fanout.Q2";
+    /**
+     * 广播模式
+     * 队列3
+     */
+    public static final String FANOUT_Q3 = "fanout.Q3";
+    /**
+     * 广播模式
+     * 交换机名称
+     */
+    public static final String FANOUT_EXCHANGE = "fanoutExchange";
 }

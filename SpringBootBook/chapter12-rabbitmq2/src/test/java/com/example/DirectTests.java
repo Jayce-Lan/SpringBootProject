@@ -19,7 +19,7 @@ public class DirectTests {
 
     @Test
     void testProducerDirect() {
-        producerDirect.produce("direct.Q4", "Test Q1");
+        producerDirect.produce("direct.Q1", "Test Q1");
         producerDirect.produce(RabbitmqConst.DIRECT_Q2, "Test Q3");
     }
 }

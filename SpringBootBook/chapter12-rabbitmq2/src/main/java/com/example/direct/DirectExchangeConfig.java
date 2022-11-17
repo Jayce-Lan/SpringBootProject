@@ -20,6 +20,9 @@ public class DirectExchangeConfig {
 
     /**
      * 队列1
+     * 值得注意的是，这里只是定义了队列名称，名称正好与key一致而已
+     * 实际交易中所识别的key得是下方 DirectExchangeQ1() 方法绑定的 key
+     * 队列名称可以另起
      * @return
      */
     @Bean

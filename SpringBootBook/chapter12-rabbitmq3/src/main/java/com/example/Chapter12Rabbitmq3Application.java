@@ -22,15 +22,15 @@ public class Chapter12Rabbitmq3Application {
 
 			// 简单模式
 			// 简单模式下的消费者启动方式（接收方）
-			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=hello-world,receiver");
+//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=hello-world,receiver");
 			// 简单模式下的生产者启动方式（发送方）
-			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=hello-world,sender");
+//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=hello-world,sender");
 
 			// 工作队列（Work Queue/Task Queue 任务队列）
 			// 工作队列模式下的消费者启动方式
-//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=work-queues,receiver");
+			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=work-queues,receiver");
 			// 工作队列模式下的生产者启动方式
-//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=work-queues,sender");
+			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=work-queues,sender");
 
 
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=pub-sub,receiver");

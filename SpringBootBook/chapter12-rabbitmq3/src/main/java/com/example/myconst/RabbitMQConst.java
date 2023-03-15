@@ -18,4 +18,25 @@ public class RabbitMQConst {
      * 发布-订阅模式下的交换机
      */
     public static final String PUB_SUB_EX_CHANGE = "tut.fanout";
+
+    /**
+     * 路由模式下的交换机
+     */
+    public static final String ROUTING_EX_CHANGE = "tut.direct";
+    /**
+     * 路由模式下的路由键1：orange
+     */
+    public static final String ROUTING_ROUTING_KEY_ORANGE = "orange";
+    /**
+     * 路由模式下的路由键2：black
+     */
+    public static final String ROUTING_ROUTING_KEY_BLACK = "black";
+    /**
+     * 路由模式下的路由键3：green
+     */
+    public static final String ROUTING_ROUTING_KEY_GREEN = "green";
+    /**
+     * 路由模式下用于给到遍历的路由键数组
+     */
+    public static final String[] ROUTING_KEYS = {ROUTING_ROUTING_KEY_ORANGE, ROUTING_ROUTING_KEY_BLACK, ROUTING_ROUTING_KEY_GREEN};
 }

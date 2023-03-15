@@ -33,11 +33,13 @@ public class Chapter12Rabbitmq3Application {
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=work-queues,sender");
 
 			// 发布/订阅模式（Publish/Subscribe）-tut3
-			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=pub-sub,receiver");
-			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=pub-sub,sender");
+//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=pub-sub,receiver");
+//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=pub-sub,sender");
 
-//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,receiver");
-//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,sender");
+			// 路由模式（Routing）-tut4
+			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,receiver");
+			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,sender");
+
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=topics,receiver");
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=topics,sender");
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=rpc,client");

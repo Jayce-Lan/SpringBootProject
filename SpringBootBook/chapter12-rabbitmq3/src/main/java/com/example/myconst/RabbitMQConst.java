@@ -13,4 +13,9 @@ public class RabbitMQConst {
      * 工作队列（Work Queue/Task Queue 任务队列）
      */
     public static final String WORK_QUEUE = "work.hello";
+
+    /**
+     * 发布-订阅模式下的交换机
+     */
+    public static final String PUB_SUB_EX_CHANGE = "tut.fanout";
 }

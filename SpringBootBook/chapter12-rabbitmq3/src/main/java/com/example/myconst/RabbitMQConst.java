@@ -39,4 +39,15 @@ public class RabbitMQConst {
      * 路由模式下用于给到遍历的路由键数组
      */
     public static final String[] ROUTING_KEYS = {ROUTING_ROUTING_KEY_ORANGE, ROUTING_ROUTING_KEY_BLACK, ROUTING_ROUTING_KEY_GREEN};
+
+    /**
+     * topic模式下的交换机
+     */
+    public static final String TOPIC_EXCHANGE = "tut.topic";
+    /**
+     * topic模式下的被遍历路由键实例数组
+     */
+    public static final String[] TOPIC_ROUTING_KEYS = {"quick.orange.rabbit", "lazy.orange.elephant", "quick.orange.fox",
+            "lazy.brown.fox", "lazy.pink.rabbit", "quick.brown.fox"};
+
 }

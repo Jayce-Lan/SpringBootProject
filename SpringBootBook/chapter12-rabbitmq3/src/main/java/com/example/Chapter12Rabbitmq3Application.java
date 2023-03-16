@@ -37,11 +37,14 @@ public class Chapter12Rabbitmq3Application {
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=pub-sub,sender");
 
 			// 路由模式（Routing）-tut4
-			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,receiver");
-			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,sender");
+//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,receiver");
+//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=routing,sender");
 
-//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=topics,receiver");
-//			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=topics,sender");
+			// 主题模式（Topics——Routing模式的进阶版） - tut5
+			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=topics,receiver");
+			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=topics,sender");
+
+			// RPC模式 - tut6
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=rpc,client");
 //			log.info("java -jar rabbit-tutorials.jar --spring.profiles.active=rpc,server");
 		};

@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Profile;
 /**
  * 发布-订阅模式
  * 发布者发布消息，消费者如果不及时消费，那么消息就会消失
+ * 发布者只要发布消息，消费者就会消费，而且会多个消费者消费一个消息，也为广播模式
  * 期间，交换机与队列的绑定关系也是临时的
  * AnonymousQueue会生成随机明明的队列
  */

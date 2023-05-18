@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TestStrategy1 {
     private static final List<StrategyToNoBean> STRATEGIES = Arrays.asList(new StrategyToNoBean1Impl(), new StrategyToNoBean2Impl());
-    private static Map<String, StrategyToNoBean> STRATEGY_MAP;
+    private static final Map<String, StrategyToNoBean> STRATEGY_MAP;
 
     static {
         STRATEGY_MAP = STRATEGIES.stream().collect(Collectors.toMap(StrategyToNoBean :: flag, s -> s));

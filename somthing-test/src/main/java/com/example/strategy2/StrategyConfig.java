@@ -2,7 +2,6 @@ package com.example.strategy2;
 
 import com.example.util.ValidateUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
@@ -11,6 +10,7 @@ import java.util.stream.Collectors;
 
 /**
  * 用于调用Service的类
+ * 基于策略模式，将 StrategyService 引入，并且根据它们 @Service的命名，匹配flag并调用
  */
 @Configuration
 @Slf4j

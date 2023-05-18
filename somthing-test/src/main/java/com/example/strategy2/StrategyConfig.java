@@ -22,13 +22,24 @@ public class StrategyConfig {
      * @param strategyServices
      * @return
      */
-    @Bean
-    public Map<String, StrategyService> StrategyConfigGetMap(List<StrategyService> strategyServices) {
+//    @Bean
+//    public Map<String, StrategyService> StrategyConfigGetMap(List<StrategyService> strategyServices) {
+//        Map<String, StrategyService> strategyMap = strategyServices.stream()
+//                .collect(Collectors.toMap(StrategyService :: serviceFlag, s -> s));
+//        STRATEGY_SERVICE_MAP = strategyMap;
+//        log.info("Map: {}", strategyMap.size());
+//        return strategyMap;
+//    }
+
+    /**
+     * 使用构造方法直接获取 被Spring容器注册过的 StrategyService 对应的接口
+     * @param strategyServices
+     */
+    public StrategyConfig(List<StrategyService> strategyServices) {
         Map<String, StrategyService> strategyMap = strategyServices.stream()
                 .collect(Collectors.toMap(StrategyService :: serviceFlag, s -> s));
         STRATEGY_SERVICE_MAP = strategyMap;
         log.info("Map: {}", strategyMap.size());
-        return strategyMap;
     }
 
     public StrategyService getStrategyService(String flag) {

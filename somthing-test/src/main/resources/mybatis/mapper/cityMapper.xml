@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mybatis.CityDAO">
+    <select id="queryCity" resultType="com.example.mybatis.City">
+        select city_id AS cityId,
+               city AS city,
+               country_id AS countryId,
+               last_update AS lastUpdate
+        from city
+    </select>
+</mapper>

@@ -1,18 +1,23 @@
 package com.example;
 
 import com.example.read.ReadFile;
+import com.example.util.CommonDict;
 import com.example.util.XmlUtils;
 import com.example.xmltest.TestXMLToObjBO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
+import javax.annotation.Resource;
 import java.io.IOException;
 
 @SpringBootTest
 @Slf4j
 class SomthingTestApplicationTests {
+	@Resource
+	private StringRedisTemplate stringRedisTemplate;
 
 	@Test
 	void testReadFileReadTxtByReadAllLines() {
@@ -44,5 +49,10 @@ class SomthingTestApplicationTests {
 		String xml = "<HEAD><PSN_NO>123123</PSN_NO><AGE>11</AGE></HEAD>";
 		TestXMLToObjBO testXMLToObjBO = XmlUtils.xmlStrToObject(xml, TestXMLToObjBO.class);
 		log.info("testXMLToObjBO, {}", testXMLToObjBO);
+	}
+
+	@Test
+	void setRedisValue() {
+		stringRedisTemplate.opsForValue().set(CommonDict.REDIS_KEY_NUM, "50");
 	}
 }

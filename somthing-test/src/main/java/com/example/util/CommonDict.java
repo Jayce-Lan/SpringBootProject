@@ -20,4 +20,12 @@ public class CommonDict {
      * Redis所的key前缀
      */
     public static final String USER_TO_QUERY_LOCK_KEY = "user.lock_";
+    /**
+     * 测试Redis分布式锁的存储数字的key（剩余存储量）
+     */
+    public static final String REDIS_KEY_NUM = "num";
+    /**
+     * 存储分布式锁的key
+     */
+    public static final String REDIS_KEY_LOCK = "lock:0001";
 }

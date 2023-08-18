@@ -1,5 +1,6 @@
 package com.example;
 
+import com.example.config.RedissonConfig;
 import com.example.read.ReadFile;
 import com.example.util.CommonDict;
 import com.example.util.XmlUtils;
@@ -18,6 +19,8 @@ import java.io.IOException;
 class SomthingTestApplicationTests {
 	@Resource
 	private StringRedisTemplate stringRedisTemplate;
+	@Resource
+	private RedissonConfig redissonConfig;
 
 	@Test
 	void testReadFileReadTxtByReadAllLines() {

@@ -1,5 +1,9 @@
 # Rabbit MQ学习
 
+Rabbit MQ是一个消息中间件，它接受并转发消息。可以把它当做一个快递站点，当需要发送一个包裹时，把包裹放在快递站，快递员最终会把包裹送到收件人处。按照这个逻辑，Rabbit MQ是一个快递站，一个快递员帮助传递快件。Rabbit MQ与快递站的区别是，它不处理快件而是接收、存储和转发消息数据。
+
+
+
 ## MQ基本概念
 
 ### 为什么要使用MQ
@@ -32,8 +36,6 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 
 <img title="" src="file:///Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq3-ybcl.png" alt="" width="288">
 
-
-
 ### MQ分类与对比
 
 | MQ类型     | 优点                                                                                                                                                                                                                                           | 缺点                                                                                                                      |
@@ -48,3 +50,61 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 > *tips2：RocketMQ出自阿里巴巴的开源产品，用Java语言实现，在设计时参考了Kafka，并做出了自己的一些改进。被阿里巴巴广泛应用在订单、交易、充值、流计算、消息推送、日志流式处理、binglog分发等场景。*
 > 
 > *tips3：RabbitMQ在2007年发布，是一个在AMQP（高级消息队列协议）基础上完成的，可复用的企业消息系统，是当前最主流的消息中间件之一。*
+
+### Rabbit MQ四大核心概念
+
+> 生产者
+
+产生数据发送信息的程序是生产者
+
+> 交换机
+
+交换机是Rabbit MQ非常重要的一个部件，一方面它接收来自生产者的消息，另一方面它将信息推送到队列中。交换机必须确切知道如何处理它接收到的消息，是将这些消息推送到特定队列还是推送到多个队列，亦或是把消息丢弃，这个得交换机决定
+
+> 队列
+
+队列是RabbitMQ内部使用的一种数据结构，尽管消息流经Rabbit MQ和应用程序，但它们只能存储在队列中。队列仅受主机的内存和磁盘限制的约束，本质上是一个打的消息缓冲区。许多生产者可以将消息发送到一个队列，许多消费者可以尝试从一个队列接收数据。这就是我们使用队列的方式
+
+（一个消费者对应一个队列；但是一个生产者可以对应多个队列）
+
+> 消费者
+
+消费与接收举要相似的含义。消费者大多时候是一个等待接收消息的程序。请注意，生产者、消费者和消息中间件很多事实并不在同一机器上。同一个应用程序既可以是生产者，又可以是消费者
+
+### Rabbit MQ核心部分（六大模式）
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq4-hxms.png)
+
+简单模式（Hello World）
+
+工作模式（Work queues）
+
+发布-订阅模式（Publish/Subscribe）
+
+路由模式（Routing）
+
+主题模式（Topics）
+
+发布确认模式（Publisher Confirms）
+
+*RPC模式* 
+
+### RabbitMQ工作原理
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq5-gzyl.png)
+
+**Broker**：接收和分发消息的应用，Rabbit MQ Server就是Message Broker
+
+**Virtual host**：出于多租户和安全因素设计的，把AMQP的基本组件划分到一个虚拟的分组中，类似于网络中的namespace概念。当多个不同的用户使用同一个Rabbit MQ Server提供的服务时，可以划分出多个vhost，每个用户在自己的vhost创建Exchange/Queue等
+
+**Connection**： publisher/consumer和Broker之间的TPC连接
+
+**Channel**：如果每一次访问Rabbit MQ都建立一个Connection，在消息量打的时候建立TPC Connection的开销将是巨大的，效率也低。Channel是在Connection内部建立的逻辑连接，如果应用程序支持多线程，通常每个thread创建单独的Channel进行通讯，AMQP method包含了Channel id帮助客户端和Message Broker识别Channel，所以Channel之间是完全隔离的。Channel作为轻量级的Connection极大减少了操作系统建立TPC Connection的开销
+
+**Exchange**：Message到达Broker的第一站，根据分发规则，匹配查询表中的routing key，分发消息到Queue中去。常用的类型有：direct（point-to-point）、topic（Publish-subscribe）、fanout（multicast）
+
+**Queue**：消息最终被送到这里等待Consumer取走
+
+**Binding**：Exchange和Queue之间的虚拟链接，binding中可以包含routing key，binding信息被保存到Exchange中的查询表中，用于Message的分发依据
+
+---

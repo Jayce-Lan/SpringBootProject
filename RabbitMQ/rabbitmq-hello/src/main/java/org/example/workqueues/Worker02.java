@@ -17,7 +17,8 @@ public class Worker02 {
     public static void main(String[] args) {
         Worker02 worker02 = new Worker02();
         try {
-            worker02.testWorkQueuesAckReceived02();
+//            worker02.testWorkQueuesAckReceived02();
+            worker02.testWorkQueuesFairDispatchReceived02();
         } catch (IOException | TimeoutException e) {
             e.printStackTrace();
         }
@@ -49,5 +50,35 @@ public class Worker02 {
         // 采用手动应答
         boolean autoAck = false;
         channel.basicConsume(RabbitMQConfigDiction.TASK_ACK_QUEUE, autoAck, deliverCallback, cancelCallback);
+    }
+
+    /**
+     * 公平调度
+     * @throws IOException
+     * @throws TimeoutException
+     */
+    private void testWorkQueuesFairDispatchReceived02() throws IOException, TimeoutException {
+        final Channel channel = RabbitMQTestUtils.getChannel();
+        channel.queueDeclare(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, false, false, null);
+        // 公平调度
+        channel.basicQos(1);
+        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+            // 模拟事务处理，本例为较慢，因此沉睡5秒
+            RabbitMQTestUtils.getSleep(5);
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
+            System.out.println("[X] Received '" + message + "'");
+            /**
+             * 手动应答
+             * 1.消息的标记，long类型参数（tag）
+             * 2.是否批量应答（multiple）
+             */
+            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+        };
+        // 消息接收取消后的接口
+        CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+        System.out.println("Work02 is waiting...slow");
+        // 采用手动应答
+        boolean autoAck = false;
+        channel.basicConsume(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, autoAck, deliverCallback, cancelCallback);
     }
 }

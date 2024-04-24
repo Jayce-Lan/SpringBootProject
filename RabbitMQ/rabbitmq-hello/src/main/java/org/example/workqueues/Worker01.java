@@ -7,6 +7,7 @@ import org.example.util.RabbitMQConfigDiction;
 import org.example.util.RabbitMQTestUtils;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -21,7 +22,8 @@ public class Worker01 {
 //            worker01.testWorkQueuesReceived();
             // 手动应答
 //            worker01.testWorkQueuesAckReceived01();
-            worker01.testWorkQueuesDurableReceived();
+            // 公平调度
+            worker01.testWorkQueuesFairDispatchReceived01();
         } catch (IOException | TimeoutException e) {
             e.printStackTrace();
         }
@@ -96,5 +98,35 @@ public class Worker01 {
         System.out.println("Work01 is waiting");
         // 消息接收
         channel.basicConsume(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, deliverCallback, cancelCallback);
+    }
+
+    /**
+     * 公平调度
+     * @throws IOException
+     * @throws TimeoutException
+     */
+    private void testWorkQueuesFairDispatchReceived01() throws IOException, TimeoutException {
+        final Channel channel = RabbitMQTestUtils.getChannel();
+        channel.queueDeclare(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, false, false, null);
+        // 公平调度
+        channel.basicQos(1);
+        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+            // 模拟事务处理，本例为较慢，因此沉睡1秒
+            RabbitMQTestUtils.getSleep(2);
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
+            System.out.println("[X] Received '" + message + "'");
+            /**
+             * 手动应答
+             * 1.消息的标记，long类型参数（tag）
+             * 2.是否批量应答（multiple）
+             */
+            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+        };
+        // 消息接收取消后的接口
+        CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+        System.out.println("Work01 is waiting...fast");
+        // 采用手动应答
+        boolean autoAck = false;
+        channel.basicConsume(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, autoAck, deliverCallback, cancelCallback);
     }
 }

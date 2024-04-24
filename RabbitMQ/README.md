@@ -227,6 +227,8 @@ private void testHelloWorldReceived() throws IOException, TimeoutException {
 }
 ```
 
+---
+
 ### Work Queues
 
 工作队列（任务队列），主要思想是避免立即执行资源密集型任务，而不得不等待它完成。工作队列（又名：任务队列）背后的主要理念是避免立即执行资源密集型任务并等待其完成。相反，我们将任务安排在稍后完成。我们将任务封装为消息，并将其发送到队列。在后台运行的 Worker 进程会弹出任务并最终执行作业。当运行多个 Worker 时，任务将在它们之间共享。  
@@ -425,35 +427,7 @@ private void testWorkQueuesAckReceived01() throws IOException, TimeoutException 
 
 消费者部分（workqueues/Worker02）
 
-```java
-/**
- * 手动应答时不丢失，放回队列重新消费
- * @throws IOException
- * @throws TimeoutException
- */
-private void testWorkQueuesAckReceived02() throws IOException, TimeoutException {
-    final Channel channel = RabbitMQTestUtils.getChannel();
-    channel.queueDeclare(RabbitMQConfigDiction.TASK_ACK_QUEUE, false, false, false, null);
-    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-        // 模拟事务处理，本例为较慢，因此沉睡30秒
-        RabbitMQTestUtils.getSleep(30);
-        String message = new String(delivery.getBody(), "UTF-8");
-        System.out.println("[X] Received '" + message + "'");
-        /**
-         * 手动应答
-         * 1.消息的标记，long类型参数（tag）
-         * 2.是否批量应答（multiple）
-         */
-        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-    };
-    // 消息接收取消后的接口
-    CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
-    System.out.println("Work02 is waiting...slow");
-    // 采用手动应答
-    boolean autoAck = false;
-    channel.basicConsume(RabbitMQConfigDiction.TASK_ACK_QUEUE, autoAck, deliverCallback, cancelCallback);
-}
-```
+*上述代码中 `RabbitMQTestUtils.getSleep(30);` 模拟工作时间改为30秒*
 
 - 经过测试，两台接受者服务器均正常的情况下，消息遵循轮训原则被消费，只是Worker02处理较慢。
 
@@ -558,3 +532,64 @@ private void testWorkQueuesDurableReceived() throws IOException, TimeoutExceptio
     channel.basicConsume(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, deliverCallback, cancelCallback);
 }
 ```
+
+#### 公平调度
+
+其实是**非轮训分发**，能者多劳。
+
+调度工作仍然不能完全按照我们的要求进行。例如，在有两个 Worker 的情况下，当所有奇数消息都很重，而偶数消息都很轻时，一个 Worker 将一直处于忙碌状态，而另一个 Worker 几乎不做任何工作。但是，RabbitMQ 对此一无所知，它仍然会均匀地分派消息。  
+
+出现这种情况是因为 RabbitMQ 只会在消息进入队列时分派消息。它不会查看消费者未确认消息的数量。它只是盲目地将每 n 条消息分派给第 n 个消费者。
+
+为了解决这个问题，我们可以在消费者使用带有 prefetchCount = 1 设置的 basicQos 方法。这样，RabbitMQ 就不会一次向 Worker 发送多于一条消息。或者换句话说，在处理并确认前一条消息之前，不要向 Worker 发送新消息。相反，它会将消息分派给下一个不忙的 Worker。
+
+> 消费者模块代码
+
+```java
+int prefetchCount = 1; // 轮训分发默认为0
+channel.basicQos(prefetchCount);
+```
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq11-FairDispatch.png)
+
+> 代码实例
+
+消费者部分（workqueues/Worker01）
+
+```java
+/**
+ * 公平调度
+ * @throws IOException
+ * @throws TimeoutException
+ */
+private void testWorkQueuesFairDispatchReceived01() throws IOException, TimeoutException {
+    final Channel channel = RabbitMQTestUtils.getChannel();
+    channel.queueDeclare(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, false, false, null);
+    // 公平调度
+    channel.basicQos(1);
+    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+        // 模拟事务处理，本例为较慢，因此沉睡1秒
+        RabbitMQTestUtils.getSleep(1);
+        String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
+        System.out.println("[X] Received '" + message + "'");
+        /**
+         * 手动应答
+         * 1.消息的标记，long类型参数（tag）
+         * 2.是否批量应答（multiple）
+         */
+        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+    };
+    // 消息接收取消后的接口
+    CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+    System.out.println("Work01 is waiting...fast");
+    // 采用手动应答
+    boolean autoAck = false;
+    channel.basicConsume(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, autoAck, deliverCallback, cancelCallback);
+}
+```
+
+消费者部分（workqueues/Worker02）
+
+*上述代码中 `RabbitMQTestUtils.getSleep(2);` 模拟工作时间改为2秒*
+
+---

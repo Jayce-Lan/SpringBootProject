@@ -18,9 +18,7 @@ public class Worker02 {
         Worker02 worker02 = new Worker02();
         try {
             worker02.testWorkQueuesAckReceived02();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
+        } catch (IOException | TimeoutException e) {
             e.printStackTrace();
         }
     }

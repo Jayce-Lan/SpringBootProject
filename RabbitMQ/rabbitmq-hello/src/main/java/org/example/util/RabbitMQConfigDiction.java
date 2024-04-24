@@ -30,4 +30,9 @@ public class RabbitMQConfigDiction {
      * 队列名称：task_queue，工作队列
      */
     public static final String TASK_QUEUE = "task_queue_new";
+    /**
+     * 队列名称：task_ack_queue，手动应答工作队列
+     */
+    public static final String TASK_ACK_QUEUE = "ack_queue";
+
 }

@@ -155,7 +155,7 @@ public static Channel getChannel() throws IOException, TimeoutException {
 
 > 代码实现
 
-简单的生产者
+简单的生产者（hello/Producer）
 
 ```java
 /**
@@ -195,7 +195,7 @@ private void testHelloWorldSent() {
 }
 ```
 
-简单的消费者
+简单的消费者（hello/Consumer）
 
 ```java
 /**
@@ -227,8 +227,6 @@ private void testHelloWorldReceived() throws IOException, TimeoutException {
 }
 ```
 
-
-
 ### Work Queues
 
 工作队列（任务队列），主要思想是避免立即执行资源密集型任务，而不得不等待它完成。工作队列（又名：任务队列）背后的主要理念是避免立即执行资源密集型任务并等待其完成。相反，我们将任务安排在稍后完成。我们将任务封装为消息，并将其发送到队列。在后台运行的 Worker 进程会弹出任务并最终执行作业。当运行多个 Worker 时，任务将在它们之间共享。  
@@ -251,7 +249,7 @@ private void testHelloWorldReceived() throws IOException, TimeoutException {
 
 > 代码实现
 
-生产者Task
+生产者Task（workqueues/Task01）
 
 ```java
 /**
@@ -277,7 +275,7 @@ private void testWorkQueueSent() {
 }
 ```
 
-用于轮训的消费者Worker（启动时启动多个即可，代码使用同一套）
+用于轮训的消费者Worker（启动时启动多个即可，代码使用同一套）（workqueues/Worker01）
 
 ```java
 /**
@@ -307,3 +305,158 @@ private void testWorkQueuesReceived() throws IOException, TimeoutException {
 消费者完成一个任务可能需要一段时间，如果其中一个消费者处理一个长的任务并仅完成了部分突然就挂掉，那么该消息就无法被接收。**Rabbit MQ一旦向消费者传递了一条消息，便立即将该消息标记为删除。** 在这种情况下突然消费者挂掉，丢失了正在处理的消息以及后续轮训发送给该消费者的消息，因为消费者无法接收。
 
 为了保证消息在发送过程中不丢失，Rabbit MQ引入了消息应答机制。即，**消费者在接收到消息并处理该消息后，返回告知Rabbit MQ已经处理成功，Rabbit MQ此时可以删除消息。** 
+
+##### 自动应答
+
+消息发送后立即被认为已经传送成功，这种模式需要在**高吞吐量和数据传输安全性方面做权衡**，因为这种模式如果消息在接收到之前，消费者就出现连接或者Channel关闭，那么消息就丢失了，当然另一方面这种模式消费者也可以传递过载的消息，**没有对传递的消息数量进行限制**，当然这样有可能使得消费者由于接收太多还来不及处理的消息导致消息积压 ，最终使得内存耗尽，这些消费者线程被系统杀死。
+
+因此该模式**仅适用于消费者可以高效并以某种速率能够处理这些消息情况下使用**。
+
+##### 手动应答
+
+###### 手动应答的方法
+
+> `Channel.basicAck()` 
+
+确定消息，适用于消息肯定被处理后的放回，告知Rabbit MQ消息已经被接收并且处理，可以丢弃该消息
+
+> `Channel.basicNack()` 
+
+不确定消息，表示不处理该消息直接拒绝，提示Rabbit MQ可以将消息丢弃。
+
+> `Channel.basicReject()` 
+
+不确定消息，表示不处理该消息直接拒绝，提示Rabbit MQ可以将消息丢弃。
+
+与上述的 `Channel.basicAck()/Channel.basicNack()` 相比少了一个参数 `Multiple` （批量处理）。
+
+###### Multiple批量处理
+
+手动应答的好处就是可以批量应答并且减少网络拥堵（如下方例子，第二个参数“true”即为multiple参数）
+
+```java
+channel.basicAck(deliceryTag, true);
+```
+
+> multiple参数的`true` 和`false` 
+
+- true代表批量应答Channel上未应答的消息
+  
+  - 比如Channel上有传送tag的消息5、6、7、8，当前tag是8，那么此时5-8这些还未应答的消息都会被确收到消息应答
+
+- false只会应答最后一条消息（日常开发建议使用）
+  
+  - 只会应答tag为8的消息（之应答当前），5、6、7这三个消息依然不会被确认收到消息应答
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq8-ack.png)
+
+###### 消息自动重新入队
+
+如果消费者由于某些原因失去连接（其通道已关闭，连接已关闭或TCP连接丢失），导致消息未发送ACK确认，Rabbit MQ将了解到消息未处理，并对其重新排队。如果此时其他消费者可以处理，它将很快将其重新分发给另一个消费者。这样即使某个消费者偶尔死亡，也可以确保消息不会丢失。
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq9-ack.png)
+
+由上图可见消息手动应答有两个特性：
+
+- 消息在手动应答时是不丢失的
+
+- 消息在未得到应答时，应当重新放回队列被重新消费
+
+> 代码实现
+
+生产者部分（workqueues/Task01）
+
+```java
+/**
+ * 消息手动应答发送方
+ * 本次主要测试消费者，因此生产者代码与上一致，只是使用了不同的消息队列名称
+ */
+private void testWorkQueueAckSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        // 声明队列
+        channel.queueDeclare(RabbitMQConfigDiction.TASK_ACK_QUEUE, false, false, false, null);
+        // 从控制台接收信息
+        System.out.println("please input the message");
+        Scanner scanner = new Scanner(System.in);
+        while (scanner.hasNext()) {
+            String message = scanner.next();
+            channel.basicPublish("", RabbitMQConfigDiction.TASK_ACK_QUEUE, null, message.getBytes(StandardCharsets.UTF_8));
+            System.out.println("be sent successfully! the message is : [" + message + "]");
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    } catch (TimeoutException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+消费者部分（workqueues/Worker01）
+
+```java
+/**
+ * 手动应答时不丢失，放回队列重新消费
+ * @throws IOException
+ * @throws TimeoutException
+ */
+private void testWorkQueuesAckReceived01() throws IOException, TimeoutException {
+    final Channel channel = RabbitMQTestUtils.getChannel();
+    channel.queueDeclare(RabbitMQConfigDiction.TASK_ACK_QUEUE, false, false, false, null);
+    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+        // 模拟事务处理，本例为较快，因此沉睡1秒
+        RabbitMQTestUtils.getSleep(1);
+        String message = new String(delivery.getBody(), "UTF-8");
+        System.out.println("[X] Received '" + message + "'");
+        /**
+         * 手动应答
+         * 1.消息的标记，long类型参数（tag）
+         * 2.是否批量应答（multiple）
+         */
+        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+    };
+    // 消息接收取消后的接口
+    CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+    System.out.println("Work01 is waiting...fast");
+    // 采用手动应答
+    boolean autoAck = false;
+    channel.basicConsume(RabbitMQConfigDiction.TASK_ACK_QUEUE, autoAck, deliverCallback, cancelCallback);
+}
+```
+
+消费者部分（workqueues/Worker02）
+
+```java
+/**
+ * 手动应答时不丢失，放回队列重新消费
+ * @throws IOException
+ * @throws TimeoutException
+ */
+private void testWorkQueuesAckReceived02() throws IOException, TimeoutException {
+    final Channel channel = RabbitMQTestUtils.getChannel();
+    channel.queueDeclare(RabbitMQConfigDiction.TASK_ACK_QUEUE, false, false, false, null);
+    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+        // 模拟事务处理，本例为较慢，因此沉睡30秒
+        RabbitMQTestUtils.getSleep(30);
+        String message = new String(delivery.getBody(), "UTF-8");
+        System.out.println("[X] Received '" + message + "'");
+        /**
+         * 手动应答
+         * 1.消息的标记，long类型参数（tag）
+         * 2.是否批量应答（multiple）
+         */
+        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+    };
+    // 消息接收取消后的接口
+    CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+    System.out.println("Work02 is waiting...slow");
+    // 采用手动应答
+    boolean autoAck = false;
+    channel.basicConsume(RabbitMQConfigDiction.TASK_ACK_QUEUE, autoAck, deliverCallback, cancelCallback);
+}
+```
+
+- 经过测试，两台接受者服务器均正常的情况下，消息遵循轮训原则被消费，只是Worker02处理较慢。
+
+- 但是在Worker02漫长的等待过程中，消息未被消费到就切断服务器程序，此时Worker01则会消费丢失的信息。
+
+- 如果再次启动Worker02服务器，会再次遵循轮训原则，并且Worker02不会去重复消费之前的丢失消息。

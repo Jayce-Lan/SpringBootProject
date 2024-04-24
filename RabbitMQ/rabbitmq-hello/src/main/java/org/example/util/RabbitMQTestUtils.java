@@ -35,4 +35,16 @@ public class RabbitMQTestUtils {
         factory.setPassword(RabbitMQConfigDiction.PASSWORD);
         return factory.newConnection().createChannel();
     }
+
+    /**
+     * 模拟事务处理时间
+     * @param second 所需时间，单位秒
+     */
+    public static void getSleep(int second) {
+        try {
+            Thread.sleep(second * 1000L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
 }

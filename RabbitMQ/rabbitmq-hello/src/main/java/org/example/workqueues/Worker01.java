@@ -20,10 +20,9 @@ public class Worker01 {
             // 简单的工作队列模式
 //            worker01.testWorkQueuesReceived();
             // 手动应答
-            worker01.testWorkQueuesAckReceived01();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
+//            worker01.testWorkQueuesAckReceived01();
+            worker01.testWorkQueuesDurableReceived();
+        } catch (IOException | TimeoutException e) {
             e.printStackTrace();
         }
     }
@@ -76,5 +75,26 @@ public class Worker01 {
         // 采用手动应答
         boolean autoAck = false;
         channel.basicConsume(RabbitMQConfigDiction.TASK_ACK_QUEUE, autoAck, deliverCallback, cancelCallback);
+    }
+
+    /**
+     * 持久化测试接收方
+     * @throws IOException
+     * @throws TimeoutException
+     */
+    private void testWorkQueuesDurableReceived() throws IOException, TimeoutException {
+        Channel channel = RabbitMQTestUtils.getChannel();
+        // 同样声明持久化队列
+        channel.queueDeclare(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, false, false, null);
+        // 额外的 DeliverCallback 接口，接收消息成功时执行。
+        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+            String message = new String(delivery.getBody(), "UTF-8");
+            System.out.println("[X] Received '" + message + "'");
+        };
+        // 消息接收取消后的接口
+        CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+        System.out.println("Work01 is waiting");
+        // 消息接收
+        channel.basicConsume(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, deliverCallback, cancelCallback);
     }
 }

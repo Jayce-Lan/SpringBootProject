@@ -27,12 +27,15 @@ public class RabbitMQConfigDiction {
      */
     public static final String QUEUE_NAME = "hello";
     /**
-     * 队列名称：task_queue，工作队列
+     * 队列名称：TASK_QUEUE，工作队列
      */
     public static final String TASK_QUEUE = "task_queue_new";
     /**
-     * 队列名称：task_ack_queue，手动应答工作队列
+     * 队列名称：TASK_ACK_QUEUE，手动应答工作队列
      */
     public static final String TASK_ACK_QUEUE = "ack_queue";
-
+    /**
+     * 队列名称：TASK_DURABLE_QUEUE，持久化队列
+     */
+    public static final String TASK_DURABLE_QUEUE = "durable_queue";
 }

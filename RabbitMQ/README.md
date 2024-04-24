@@ -460,3 +460,101 @@ private void testWorkQueuesAckReceived02() throws IOException, TimeoutException 
 - 但是在Worker02漫长的等待过程中，消息未被消费到就切断服务器程序，此时Worker01则会消费丢失的信息。
 
 - 如果再次启动Worker02服务器，会再次遵循轮训原则，并且Worker02不会去重复消费之前的丢失消息。
+
+#### 消息的持久化
+
+##### 队列持久化
+
+我们已经学习了消息应答来保证即使消费者死亡，消息也不会丢失。但是，如果 RabbitMQ 服务器停止，我们的任务仍然会丢失。  
+
+当 RabbitMQ 退出或崩溃时，它会忘记队列和消息，除非您告诉它不要这样做。要确保消息不会丢失，需要做两件事：我们需要将队列和消息都标记为持久化。
+
+> 队列持久化实现
+
+之前我们创建的队列都是非持久化的，Rabbit MQ一旦重启就会被删除。如果需要进行队列持久化，我们需要把参数 `durable` 设为true。当做了该项设置后，及时Rabbit MQ重启，队列也将存在，而不会被删除。
+
+**官网说明** *This `queueDeclare` change needs to be applied to both the producer and consumer code.——对 queueDeclare 的更改需要同时应用于生产者和消费者代码。*
+
+经过测试，下述代码段如果消费者没有，则不会消费消息。
+
+```java
+boolean durable = true;
+channel.queueDeclare("queueName", durable, false, false, null);
+```
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq10-Durable.png)
+
+*Tips：当一个队列名称在对应的Virtual host已经存在，并且为非持久化时，创建同名的持久化队列会报创建错误。*
+
+##### 消息持久化
+
+如果仅仅按照上述进行队列持久化，那么，重启后队列会存在，但是未被消费的消息将会丢失，因此需要进行消息持久化。
+
+> 消息持久化实现
+
+队列的持久化应该是有生产者生产出消息时，就应当注明消息是否持久化，即 `channel.basicPublish()` 中的第三个参数，规定为 `PERSISTENT_TEXT_PLAIN` 持久性文本。
+
+该方法不能完全保证不会丢失消息；会尽量要求Rabbit MQ将消息保存到磁盘，因为在Rabbit MQ将消息准备存储到设备时，未存储完毕这个时间节点未写入，则会导致持久化失败。这种情况则需要后续学习到的更加强有力的持久化策略。
+
+```java
+import com.rabbitmq.client.MessageProperties;
+
+channel.basicPublish("", "queueName",
+            MessageProperties.PERSISTENT_TEXT_PLAIN,
+            message.getBytes());
+```
+
+> 代码实例
+
+生产者部分（workqueues/Task01）
+
+```java
+/**
+ * 队列持久化
+ * 消息持久化
+ */
+private void testWorkQueueDurable() {
+    try (Channel channel = RabbitMQTestUtils.getChannel();) {
+        // 持久化队列Queue的参数-durable
+        boolean durable = true;
+        channel.queueDeclare(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, durable, false, false, null);
+        // 从控制台接收信息
+        System.out.println("please input the message");
+        Scanner scanner = new Scanner(System.in);
+        while (scanner.hasNext()) {
+            String message = scanner.next();
+            channel.basicPublish("", RabbitMQConfigDiction.TASK_DURABLE_QUEUE,
+                    MessageProperties.PERSISTENT_TEXT_PLAIN, // 消息持久化
+                    message.getBytes(StandardCharsets.UTF_8));
+            System.out.println("be sent successfully! the message is : [" + message + "]");
+        }
+    } catch (IOException | TimeoutException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+消费者部分（workqueues/Worker01）
+
+```java
+/**
+ * 持久化测试接收方
+ * @throws IOException
+ * @throws TimeoutException
+ */
+private void testWorkQueuesDurableReceived() throws IOException, TimeoutException {
+    Channel channel = RabbitMQTestUtils.getChannel();
+    // 同样声明持久化队列
+    channel.queueDeclare(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, false, false, null);
+    // 额外的 DeliverCallback 接口，接收消息成功时执行。
+    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+        String message = new String(delivery.getBody(), "UTF-8");
+        System.out.println("[X] Received '" + message + "'");
+    };
+    // 消息接收取消后的接口
+    CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+    System.out.println("Work01 is waiting");
+    // 消息接收
+    channel.basicConsume(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, true, deliverCallback, cancelCallback);
+}
+```

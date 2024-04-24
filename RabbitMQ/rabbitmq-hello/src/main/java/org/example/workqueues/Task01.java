@@ -36,9 +36,7 @@ public class Task01 {
                 channel.basicPublish("", RabbitMQConfigDiction.TASK_QUEUE, null, message.getBytes(StandardCharsets.UTF_8));
                 System.out.println("be sent successfully! the message is : [" + message + "]");
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
+        } catch (IOException | TimeoutException e) {
             e.printStackTrace();
         }
     }
@@ -59,9 +57,7 @@ public class Task01 {
                 channel.basicPublish("", RabbitMQConfigDiction.TASK_ACK_QUEUE, null, message.getBytes(StandardCharsets.UTF_8));
                 System.out.println("be sent successfully! the message is : [" + message + "]");
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
+        } catch (IOException | TimeoutException e) {
             e.printStackTrace();
         }
     }

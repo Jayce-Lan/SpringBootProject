@@ -7,6 +7,7 @@ import org.example.util.RabbitMQConfigDiction;
 import org.example.util.RabbitMQTestUtils;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -35,7 +36,7 @@ public class Worker02 {
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             // 模拟事务处理，本例为较慢，因此沉睡30秒
             RabbitMQTestUtils.getSleep(30);
-            String message = new String(delivery.getBody(), "UTF-8");
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
             System.out.println("[X] Received '" + message + "'");
             /**
              * 手动应答

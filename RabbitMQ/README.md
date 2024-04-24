@@ -109,6 +109,25 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 
 ## Rabbit MQ核心部分
 
+> 封装Channel部分代码
+
+直接将信道封装，往下每次调用不需要再重新连接信道，直接调用方法即可
+
+```java
+/**
+ * 直接获取信道
+ * @return 返回MQ设置好的的信道
+ */
+public static Channel getChannel() throws IOException, TimeoutException {
+    ConnectionFactory factory = new ConnectionFactory();
+    factory.setHost(RabbitMQConfigDiction.MQ_HOST);
+    factory.setVirtualHost(RabbitMQConfigDiction.VIRTUAL_HOST);
+    factory.setUsername(RabbitMQConfigDiction.USER_NAME);
+    factory.setPassword(RabbitMQConfigDiction.PASSWORD);
+    return factory.newConnection().createChannel();
+}
+```
+
 > 所需依赖
 
 ```xml
@@ -129,3 +148,162 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
     </dependency>
 </dependencies>
 ```
+
+### Hello World
+
+<img src="file:///Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq6-hello.png" title="" alt="" width="276">
+
+> 代码实现
+
+简单的生产者
+
+```java
+/**
+ * HelloWorld-简单模式，发送方（生产者）
+ */
+private void testHelloWorldSent() {
+    // 生产者创建连接-获取信道（Channel）
+    RabbitMQTestUtils rabbitMQTestUtils = new RabbitMQTestUtils();
+    try (Connection connection = rabbitMQTestUtils.getConnectionFactory().newConnection();
+         Channel channel = connection.createChannel()){
+        /**
+         * 生成一个队列
+         * 1.队列名称
+         * 2.队列里消息是否需要持久化（写入磁盘），默认存在内存中，即false
+         * 3.该队列是否只供一个消费者进行消费共享，true为可以多个消费者消费，false只能一个消费者消费
+         * 4.是否自动删除，最后一个消费者断开连接后该队列是否执行自动删除-true自动删除，false不自动删除
+         * 5.其他参数
+         */
+        channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+        String message = "Hello Rabbit MQ";
+        /**
+         * 进行消息发送
+         * 1.目标交换机
+         * 2.队列名称（routingKey）
+         * 3.其他参数信息
+         * 4.发送消息的消息体
+         */
+        channel.basicPublish("", QUEUE_NAME, null, message.getBytes(StandardCharsets.UTF_8));
+        System.out.println("[X] Sent '" + message + "'");
+    } catch (IOException e) {
+        e.printStackTrace();
+        System.err.println(e.getMessage());
+    } catch (TimeoutException e) {
+        e.printStackTrace();
+        System.err.println(e.getMessage());
+    }
+}
+```
+
+简单的消费者
+
+```java
+/**
+ * HelloWorld-简单模式，接收方（消费者）
+ * @throws IOException
+ * @throws TimeoutException
+ */
+private void testHelloWorldReceived() throws IOException, TimeoutException {
+    RabbitMQTestUtils rabbitMQTestUtils = new RabbitMQTestUtils();
+    Connection connection = rabbitMQTestUtils.getConnectionFactory().newConnection();
+    Channel channel = connection.createChannel();
+    channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+    System.out.println("[*] Waiting for messages. To exit press CTRL+C");
+    // 额外的 DeliverCallback 接口，用于缓冲服务器推送给我们的信息。
+    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+        String message = new String(delivery.getBody(), "UTF-8");
+        System.out.println("[X] Received '" + message + "'");
+    };
+    /**
+     * 消费者消费信息
+     * 1.消费队列名称
+     * 2.消费成功后是否自动应答，true标识自动，false手动
+     * 3.消费者成功消费的回调
+     * 4.消费者取消消息的回调（消费被中断）
+     */
+    channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
+        System.out.println("Received is stop!");
+    });
+}
+```
+
+
+
+### Work Queues
+
+工作队列（任务队列），主要思想是避免立即执行资源密集型任务，而不得不等待它完成。工作队列（又名：任务队列）背后的主要理念是避免立即执行资源密集型任务并等待其完成。相反，我们将任务安排在稍后完成。我们将任务封装为消息，并将其发送到队列。在后台运行的 Worker 进程会弹出任务并最终执行作业。当运行多个 Worker 时，任务将在它们之间共享。  
+
+这一概念在网络应用程序中尤其有用，因为在短时间的 HTTP 请求窗口中不可能处理复杂的任务。安排任务在之后执行。
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq7-workQueues.png)
+
+#### 消费者声明队列
+
+- 消费者与生产者**都应当使用`channel.queueDeclare` 方法声明队列**
+
+- 消费者如果不声明队列，那么如果首次创建对象，生产者未声明队列前消费者就启动，会触发NOT_FOUND异常
+
+- 有一个疑问点：优先创建了消费者，并且声明了QueueDeclare，为什么此时的消费者无法消费后起的生产者生产的消息？
+
+#### 轮训模式
+
+当一个生产者生产消息时，多个消费者同时消费，此时消费者会轮流消费消息。例如生产者生产了`AA/BB/CC/DD` 四条消息，有两个消费者 `Worker01` 和 `Worker02` 此时01就会消费`AA/CC` ，02就会消费`BB/DD` 如此轮流依次消费
+
+> 代码实现
+
+生产者Task
+
+```java
+/**
+ * 简单的工作队列发送方
+ */
+private void testWorkQueueSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        // 声明队列
+        channel.queueDeclare(RabbitMQConfigDiction.TASK_QUEUE, false, false, false, null);
+        // 从控制台接收信息
+        System.out.println("please input the message");
+        Scanner scanner = new Scanner(System.in);
+        while (scanner.hasNext()) {
+            String message = scanner.next();
+            channel.basicPublish("", RabbitMQConfigDiction.TASK_QUEUE, null, message.getBytes(StandardCharsets.UTF_8));
+            System.out.println("be sent successfully! the message is : [" + message + "]");
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    } catch (TimeoutException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+用于轮训的消费者Worker（启动时启动多个即可，代码使用同一套）
+
+```java
+/**
+ * 简单的工作队列模式接收方
+ * @throws IOException
+ * @throws TimeoutException
+ */
+private void testWorkQueuesReceived() throws IOException, TimeoutException {
+    Channel channel = RabbitMQTestUtils.getChannel();
+    // 声明队列-消费者如果不声明队列，那么如果首次创建对象，生产者未声明队列前消费者就启动，会触发NOT_FOUND异常
+    channel.queueDeclare(RabbitMQConfigDiction.TASK_QUEUE, false, false, false, null);
+    // 额外的 DeliverCallback 接口，接收消息成功时执行。
+    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+        String message = new String(delivery.getBody(), "UTF-8");
+        System.out.println("[X] Received '" + message + "'");
+    };
+    // 消息接收取消后的接口
+    CancelCallback cancelCallback = consumerTag -> System.out.println(consumerTag + "Received is cancel!");
+    System.out.println("Work01 is waiting");
+    // 消息接收
+    channel.basicConsume(RabbitMQConfigDiction.TASK_QUEUE, true, deliverCallback, cancelCallback);
+}
+```
+
+#### 消息应答
+
+消费者完成一个任务可能需要一段时间，如果其中一个消费者处理一个长的任务并仅完成了部分突然就挂掉，那么该消息就无法被接收。**Rabbit MQ一旦向消费者传递了一条消息，便立即将该消息标记为删除。** 在这种情况下突然消费者挂掉，丢失了正在处理的消息以及后续轮训发送给该消费者的消息，因为消费者无法接收。
+
+为了保证消息在发送过程中不丢失，Rabbit MQ引入了消息应答机制。即，**消费者在接收到消息并处理该消息后，返回告知Rabbit MQ已经处理成功，Rabbit MQ此时可以删除消息。** 

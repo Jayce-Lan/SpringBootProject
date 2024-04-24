@@ -26,4 +26,8 @@ public class RabbitMQConfigDiction {
      * 队列名称：Hello World的队列-hello
      */
     public static final String QUEUE_NAME = "hello";
+    /**
+     * 队列名称：task_queue，工作队列
+     */
+    public static final String TASK_QUEUE = "task_queue_new";
 }

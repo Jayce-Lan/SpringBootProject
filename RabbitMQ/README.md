@@ -592,4 +592,16 @@ private void testWorkQueuesFairDispatchReceived01() throws IOException, TimeoutE
 
 *上述代码中 `RabbitMQTestUtils.getSleep(2);` 模拟工作时间改为2秒*
 
+#### 预期值调度
+
+根据上一章公平调度的`prefetchCount` 参数属性，默认为0，公平调度为1。**但是当我们给到设定指定值时，则该值为欲取值**。
+
+欲取值与公平调度不同，不会在乎你的机器工作效率，而是会十分暴力的根据预设值来进行分配，例如Worker01分配2条消息要消费、Worker02要分配5条消息要消费，那么前消息会不在乎机器性能直接强行按照这个分配额进行分配。
+
+**也可以将这个值当做信道Channel可以存储等待的最大值**。
+
+此时，消息只能看信道中消息存储量，如果未到达预设值，即使消息未被消费，也会被分配消息。
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq12-basicQos.png)
+
 ---

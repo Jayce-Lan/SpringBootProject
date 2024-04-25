@@ -70,7 +70,7 @@ public class Task01 {
      * 消息持久化
      */
     private void testWorkQueueDurable() {
-        try (Channel channel = RabbitMQTestUtils.getChannel();) {
+        try (Channel channel = RabbitMQTestUtils.getChannel()) {
             // 持久化队列Queue的参数-durable
             boolean durable = true;
             channel.queueDeclare(RabbitMQConfigDiction.TASK_DURABLE_QUEUE, durable, false, false, null);

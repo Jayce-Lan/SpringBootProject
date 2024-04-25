@@ -592,7 +592,9 @@ private void testWorkQueuesFairDispatchReceived01() throws IOException, TimeoutE
 
 *上述代码中 `RabbitMQTestUtils.getSleep(2);` 模拟工作时间改为2秒*
 
-#### 预期值调度
+**其实公平调度实现原理就是让每个消费者的信道当中消息量为1**
+
+##### 预期值调度
 
 根据上一章公平调度的`prefetchCount` 参数属性，默认为0，公平调度为1。**但是当我们给到设定指定值时，则该值为欲取值**。
 

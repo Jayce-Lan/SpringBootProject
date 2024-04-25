@@ -8,6 +8,8 @@ import org.example.util.RabbitMQTestUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -24,7 +26,11 @@ public class ConfirmSelectTask {
         // 批量发布确认
 //        confirmSelectTask.testWorkQueueConfirmSelectBatchSent();
         // 异步发布确认
-        confirmSelectTask.testWorkQueueConfirmAsyncSent();
+//        confirmSelectTask.testWorkQueueConfirmAsyncSent();
+        List<String> list = new ArrayList<>();
+        // 删除无用的持久化队列
+        list.add("509e7cc0-dacd-47b9-ae08-f95ee3a2cfa7");
+        list.forEach(RabbitMQTestUtils::deleteDurableQueue);
     }
 
     /**

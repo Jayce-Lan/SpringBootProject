@@ -50,6 +50,8 @@ public class RabbitMQTestUtils {
 
     /**
      * 强制删除队列
+     * 由于没有两个后面的判定参数：是否删除没有消息的队列，是否删除未被占用的队列
+     * 因此是强制删除方法，见于源码，实际实现是 channel.queueDelete(queueName, false, false)
      * @param queueName 队列名称
      */
     public static void deleteDurableQueue(String queueName) {

@@ -468,7 +468,7 @@ channel.queueDeclare("queueName", durable, false, false, null);
 
 队列的持久化应该是有生产者生产出消息时，就应当注明消息是否持久化，即 `channel.basicPublish()` 中的第三个参数，规定为 `PERSISTENT_TEXT_PLAIN` 持久性文本。
 
-该方法不能完全保证不会丢失消息；会尽量要求Rabbit MQ将消息保存到磁盘，因为在Rabbit MQ将消息准备存储到设备时，未存储完毕这个时间节点未写入，则会导致持久化失败。这种情况则需要后续学习到的更加强有力的持久化策略。
+该方法不能完全保证不会丢失消息；会尽量要求Rabbit MQ将消息保存到磁盘，因为在Rabbit MQ将消息准备存储到设备时，未存储完毕这个时间节点未写入，则会导致持久化失败。这种情况则需要使用**发布确认**这种更加强有力的持久化策略。
 
 ```java
 import com.rabbitmq.client.MessageProperties;
@@ -607,3 +607,335 @@ private void testWorkQueuesFairDispatchReceived01() throws IOException, TimeoutE
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq12-basicQos.png)
 
 ---
+
+### 发布确认
+
+上面讲到，在写入磁盘的间隙，假如MQ服务器宕机，将可能会导致持久化失败，因此就需要一个发布确认机制，发布确认需要达到3个条件才能保证消息持久化：
+
+- 要求队列必须持久化
+
+- 要求队列中的消息必须持久化
+
+- 发布确认（即生**产者发**布消息后，Rabbit MQ返回一个确认信息）
+
+#### 开启发布确认单方法
+
+发布确认默认不开启，如果需要开启则需要在Channel信道上调用confirmSelect方法
+
+```java
+channel.confirmSelect();
+```
+
+#### 单个发布确认
+
+这是一种简单的确认方式，它是一种**同步确认发布**的方式，也就是发布一个消息之后只有它被确认发布，后续的消息才能继续发布。`waitForConfirms()` 这个方法只有在消息被确认时才返回，如果在指定时间范围内这个消息没有被确认，那么将抛出异常。
+
+此方法最大缺点是**发布速度极慢**，因为如果没有确认发布的消息就会阻塞后续所有消息，这种方式最多提供每秒不超过数百条发布消息的吞吐量。
+
+> 代码实现
+
+所在目录（confirmselect/ConfirmSelectTask）
+
+```java
+/**
+ * 单个发布确认
+ * Total execution time is [548ms]
+ * 队列持久化 - channel.queueDeclare 中的 durable = true
+ * 消息持久化 - channel.basicPublish 中的 MessageProperties.PERSISTENT_TEXT_PLAIN 参数
+ * 发布确认 - channel.confirmSelect()
+ * 单个消息发布确认 - channel.waitForConfirms()
+ */
+private void testWorkQueueConfirmSelectIndividuallySent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        // 持久化队列Queue的参数-durable
+        boolean durable = true;
+        // 随机获取队列名称
+        final String queueName = UUID.randomUUID().toString();
+        channel.queueDeclare(queueName, durable, false, false, null);
+        // 开启发布确认
+        channel.confirmSelect();
+        // 开始时间
+        final long beginTime = System.currentTimeMillis();
+        // 批量发消息，用于测试耗时
+        for (int i = 0; i < RabbitMQConfigDiction.MESSAGE_COUNT; i++) {
+            String message = String.valueOf(i);
+            channel.basicPublish("", queueName, MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBytes(StandardCharsets.UTF_8));
+            // 单个消息发布确认
+            if (channel.waitForConfirms()) {
+                System.out.println("message is confirm, success, the message is [" + message + "]");
+            }
+        }
+        final long endTime = System.currentTimeMillis();
+        System.out.println("Total execution time is [" + (endTime - beginTime) + "ms]");
+    } catch (IOException | TimeoutException | InterruptedException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+#### 批量发布确认
+
+单个发布确认执行极慢，如果使用批量发布确认可以极大地提高吞吐量，但是缺点是，**当故障导致发布出现问题时，不知道哪个消息会出现问题，需要将整个批次保存在内存中，以记录重要的信息而后重新发布消息**。
+
+而且这种形式也是同步确认，也会阻塞消息发布。
+
+> 代码实现
+
+所在目录（confirmselect/ConfirmSelectTask）
+
+```java
+/**
+ * 批量发布确认
+ * Total execution time is [66ms]
+ * 队列持久化 - channel.queueDeclare 中的 durable = true
+ * 消息持久化 - channel.basicPublish 中的 MessageProperties.PERSISTENT_TEXT_PLAIN 参数
+ * 发布确认 - channel.confirmSelect()
+ * 批量消息发布确认 - 定义批量确认长度: final int confirmCount = 100;/  channel.waitForConfirms()
+ */
+private void testWorkQueueConfirmSelectBatchSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        // 持久化队列Queue的参数-durable
+        boolean durable = true;
+        // 随机获取队列名称
+        final String queueName = UUID.randomUUID().toString();
+        channel.queueDeclare(queueName, durable, false, false, null);
+        // 开启发布确认
+        channel.confirmSelect();
+        // 定义批量确认长度
+        final int confirmCount = 100;
+        // 开始时间
+        final long beginTime = System.currentTimeMillis();
+        // 批量发消息，用于测试耗时
+        for (int i = 0; i < RabbitMQConfigDiction.MESSAGE_COUNT; i++) {
+            String message = String.valueOf(i);
+            channel.basicPublish("", queueName, MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBytes(StandardCharsets.UTF_8));
+            // 达到100条批量确认一次
+            if ((i + 1) % confirmCount == 0) {
+                if (channel.waitForConfirms()) {
+                    System.out.println("message is confirm, success, now count is [" + message + "]");
+                }
+            }
+        }
+        final long endTime = System.currentTimeMillis();
+        System.out.println("Total execution time is [" + (endTime - beginTime) + "ms]");
+    } catch (IOException | TimeoutException | InterruptedException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+#### 异步发布确认
+
+异步发布确认虽然逻辑上比上述两种都复杂，但是性价比最高。可靠性强、异步执行不阻塞效率高。它是利用回调函数来达到消息可靠性传递的，这个中间件也是通过函数回调来保证是否投递成功。
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq13-Confirm.png)
+
+创建一个`channel.addConfirmListener` 为监听器，监听回调函数。该方法有两个构造函数：
+
+- 一个为单参数的`channel.addConfirmListener(ConfirmListener)` 静态返回
+
+- 一个为双参数的 `channel.addConfirmListener(ConfirmCallback, ConfirmCallback)` 返回值为 `ConfirmListener` ，一个监听器。该方法第一个参数为成功回调，即ackCallBack；第二个为失败回调，即nackCallBack
+
+该监听为异步的，并且**应当在消息发送前提前创建**
+
+> 创建监听器
+
+```java
+// 成功回调函数（消息标识，是否为批量确认）
+ConfirmCallback ackCallBack = (deliveryTag, multiple) -> {
+    System.out.println("the success message's key is [" + deliveryTag + "]");
+};
+// 失败回调函数（消息标识，是否为批量确认）
+ConfirmCallback nackCallBack = (deliveryTag, multiple) -> {
+    System.out.println("the loss message's key is [" + deliveryTag + "]");
+};
+channel.addConfirmListener(ackCallBack, nackCallBack);
+```
+
+> 代码实例
+
+所在目录（confirmselect/ConfirmSelectTask）
+
+```java
+/**
+ * 异步发布确认
+ * Total execution time is [25ms]
+ * 队列持久化 - channel.queueDeclare 中的 durable = true
+ * 消息持久化 - channel.basicPublish 中的 MessageProperties.PERSISTENT_TEXT_PLAIN 参数
+ * 发布确认 - channel.confirmSelect()
+ * 监听器 - channel.addConfirmListener(ackCallBack, nackCallBack);
+ *       - 成功回调函数：ackCallBack
+ *       - 失败回调函数：nackCallBack
+ */
+private void testWorkQueueConfirmAsyncSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        // 持久化队列Queue的参数-durable
+        boolean durable = true;
+        // 随机获取队列名称
+        final String queueName = UUID.randomUUID().toString();
+        channel.queueDeclare(queueName, durable, false, false, null);
+        // 开启发布确认
+        channel.confirmSelect();
+        // 开始时间
+        final long beginTime = System.currentTimeMillis();
+        // 消息监听器，监听消息发送情况；要在发送消息前优先准备，否则可能监听不到broker返回的信息
+        // 成功回调函数（消息标识，是否为批量确认）
+        ConfirmCallback ackCallBack = (deliveryTag, multiple) -> {
+            System.out.println("the success message's key is [" + deliveryTag + "]");
+        };
+        // 失败回调函数（消息标识，是否为批量确认）
+        ConfirmCallback nackCallBack = (deliveryTag, multiple) -> {
+            System.out.println("the loss message's key is [" + deliveryTag + "]");
+        };
+        channel.addConfirmListener(ackCallBack, nackCallBack);
+        // 批量发消息，用于测试耗时
+        for (int i = 0; i < RabbitMQConfigDiction.MESSAGE_COUNT; i++) {
+            String message = String.valueOf(i);
+            channel.basicPublish("", queueName, null, message.getBytes(StandardCharsets.UTF_8));
+        }
+        final long endTime = System.currentTimeMillis();
+        System.out.println("Total execution time is [" + (endTime - beginTime) + "ms]");
+    } catch (IOException | TimeoutException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+#### 如何处理异步未确认消息
+
+由于监听器是异步的，可能导致未完成监听但是消息已经发送完毕。因此会导致未确认的消息未被处理的情况。最好的解决方案就是把未确认的消息放到一个基于内存的，能被发布线程访问的队列，比如说ConcurrentLinkedQueue这个队列在confirm callbacks与发布线程之间进行消息的传递。
+
+> 解决方案
+
+- 记录下`channel.basicPublish` 执行之后发布消息的总和
+
+- 删除已经被监听器确认过的数据，其余就是未确认数据
+
+> 代码逻辑
+
+在开启发布确认后，先准备出一个线程安全有序的hash表，适用于高并发的情况
+
+```java
+// 开启发布确认
+channel.confrmSelect();
+/**
+ * 在开启发布确认后，先准备出一个线程安全有序的hash表，适用于高并发的情况
+ * 1.可以轻松地让消息与消息关联
+ * 2.轻松批量删除条目，只需要key值
+ * 3.支持高并发（多线程）
+ */
+ConcurrentSkipListMap<Long, Object> outstandingConfirms = new ConcurrentSkipListMap<>();
+```
+
+记录下所有消息的总和
+
+`channel.getNextPublishSeqNo()` 方法获取信道中发送信息的序号
+
+```java
+channel.basicPublish("", queueName, null, message.getBytes(StandardCharsets.UTF_8));
+// 记录下所有消息的总和
+outstandingConfirms.put(channel.getNextPublishSeqNo(), message);
+```
+
+在回调函数中删除已经处理的map中的数据
+
+```java
+// 成功回调函数（消息标识，是否为批量确认）
+ConfirmCallback ackCallBack = (deliveryTag, multiple) -> {
+    // 如果是批量确认，那么则获取到批量信息后批量删除
+    if (multiple) {
+        ConcurrentNavigableMap<Long, Object> confirmed = outstandingConfirms.headMap(deliveryTag);
+        confirmed.clear();
+    } else {
+        // 单个确认时调用单个删除
+        outstandingConfirms.remove(deliveryTag);
+    }
+    System.out.println("the success message's key is [" + deliveryTag + "]");
+};
+// 失败回调函数（消息标识，是否为批量确认）
+ConfirmCallback nackCallBack = (deliveryTag, multiple) -> {
+    String nackMessage = (String) outstandingConfirms.get(deliveryTag);
+    System.out.println("the loss message's key is [" + deliveryTag + "]");
+    System.out.println("the loss message is [" + nackMessage + "]");
+};
+```
+
+> 代码实现
+
+```java
+/**
+ * 异步发布确认
+ * Total execution time is [25ms]
+ * 队列持久化 - channel.queueDeclare 中的 durable = true
+ * 消息持久化 - channel.basicPublish 中的 MessageProperties.PERSISTENT_TEXT_PLAIN 参数
+ * 发布确认 - channel.confirmSelect()
+ * 监听器 - channel.addConfirmListener(ackCallBack, nackCallBack);
+ *       - 成功回调函数：ackCallBack
+ *       - 失败回调函数：nackCallBack
+ */
+private void testWorkQueueConfirmAsyncSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        // 持久化队列Queue的参数-durable
+        boolean durable = true;
+        // 随机获取队列名称
+        final String queueName = UUID.randomUUID().toString();
+        channel.queueDeclare(queueName, durable, false, false, null);
+        // 开启发布确认
+        channel.confirmSelect();
+        /**
+         * 在开启发布确认后，先准备出一个线程安全有序的hash表，适用于高并发的情况
+         * 1.可以轻松地让消息与消息关联
+         * 2.轻松批量删除条目，只需要key值
+         * 3.支持高并发（多线程）
+         */
+        ConcurrentSkipListMap<Long, Object> outstandingConfirms = new ConcurrentSkipListMap<>();
+        // 消息监听器，监听消息发送情况；要在发送消息前优先准备，否则可能监听不到broker返回的信息
+        // 成功回调函数（消息标识，是否为批量确认）
+        ConfirmCallback ackCallBack = (deliveryTag, multiple) -> {
+            // 如果是批量确认，那么则获取到批量信息后批量删除
+            if (multiple) {
+                ConcurrentNavigableMap<Long, Object> confirmed = outstandingConfirms.headMap(deliveryTag);
+                confirmed.clear();
+            } else {
+                // 单个确认时调用单个删除
+                outstandingConfirms.remove(deliveryTag);
+            }
+            System.out.println("the success message's key is [" + deliveryTag + "]");
+        };
+        // 失败回调函数（消息标识，是否为批量确认）
+        ConfirmCallback nackCallBack = (deliveryTag, multiple) -> {
+            String nackMessage = (String) outstandingConfirms.get(deliveryTag);
+            System.out.println("the loss message's key is [" + deliveryTag + "]");
+            System.out.println("the loss message is [" + nackMessage + "]");
+        };
+        channel.addConfirmListener(ackCallBack, nackCallBack);
+        // 开始时间
+        final long beginTime = System.currentTimeMillis();
+        // 批量发消息，用于测试耗时
+        for (int i = 0; i < RabbitMQConfigDiction.MESSAGE_COUNT; i++) {
+            String message = String.valueOf(i);
+            channel.basicPublish("", queueName, null, message.getBytes(StandardCharsets.UTF_8));
+            // 1.记录下所有消息的总和
+            outstandingConfirms.put(channel.getNextPublishSeqNo(), message);
+        }
+        final long endTime = System.currentTimeMillis();
+        System.out.println("Total execution time is [" + (endTime - beginTime) + "ms]");
+    } catch (IOException | TimeoutException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+#### 发布确认形式对比
+
+| 发布确认类型 | 等待确认 | 难易程度  | 吞吐量 | 错误判断 |
+| ------ | ---- | ----- | --- | ---- |
+| 单个发布确认 | 同步   | 较为简单  | 有限  | 容易判断 |
+| 批量发布确认 | 同步   | 及其简单  | 高   | 很难判断 |
+| 异步发布确认 | 异步   | 代码实现难 | 极高  | 容易判断 |
+
+- 单个发布确认：同步等待确认，简单，吞吐量非常有限
+
+- 批量发布确认：批量同步等待确认，简单，合理吞吐量，一旦出现问题很难判断出是哪条消息出了问题
+
+- 异步发布确认：最佳性能和资源使用，在出现错误的情况下可以很好的控制，但是实现较难

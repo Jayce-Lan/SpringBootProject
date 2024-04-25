@@ -38,4 +38,8 @@ public class RabbitMQConfigDiction {
      * 队列名称：TASK_DURABLE_QUEUE，持久化队列
      */
     public static final String TASK_DURABLE_QUEUE = "durable_queue";
+    /**
+     * 批量发送消息的条数
+     */
+    public static final int MESSAGE_COUNT = 1000;
 }

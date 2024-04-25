@@ -21,7 +21,7 @@ public class Task01 {
         // 手动应答
 //        task01.testWorkQueueAckSent();
         // 队列持久化
-        task01.testWorkQueueDurable();
+        task01.testWorkQueueDurableSent();
     }
 
     /**
@@ -66,10 +66,10 @@ public class Task01 {
     }
 
     /**
-     * 队列持久化
-     * 消息持久化
+     * 队列持久化 - channel.queueDeclare 中的 durable = true
+     * 消息持久化 - channel.basicPublish 中的 MessageProperties.PERSISTENT_TEXT_PLAIN 参数
      */
-    private void testWorkQueueDurable() {
+    private void testWorkQueueDurableSent() {
         try (Channel channel = RabbitMQTestUtils.getChannel()) {
             // 持久化队列Queue的参数-durable
             boolean durable = true;

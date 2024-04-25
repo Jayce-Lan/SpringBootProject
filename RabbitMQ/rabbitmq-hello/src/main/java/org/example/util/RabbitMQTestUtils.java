@@ -47,4 +47,17 @@ public class RabbitMQTestUtils {
             e.printStackTrace();
         }
     }
+
+    /**
+     * 强制删除队列
+     * @param queueName 队列名称
+     */
+    public static void deleteDurableQueue(String queueName) {
+        try (final Channel channel = getChannel()) {
+            channel.queueDelete(queueName);
+            System.out.println("delete success! delete queue name is [" + queueName + "]");
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+        }
+    }
 }

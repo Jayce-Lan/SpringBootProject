@@ -217,9 +217,9 @@ private void testHelloWorldReceived() throws IOException, TimeoutException {
     /**
      * 消费者消费信息
      * 1.消费队列名称
-     * 2.消费成功后是否自动应答，true标识自动，false手动
+     * 2.消费成功后是否自动应答，true表示自动，false手动
      * 3.消费者成功消费的回调
-     * 4.消费者取消消息的回调（消费被中断）
+     * 4.消费者取消消息的回调（消费被中断、消费失败）
      */
     channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
         System.out.println("Received is stop!");
@@ -861,6 +861,8 @@ ConfirmCallback nackCallBack = (deliveryTag, multiple) -> {
 ```
 
 > 代码实现
+
+所在目录（confirmselect/ConfirmSelectTask）
 
 ```java
 /**

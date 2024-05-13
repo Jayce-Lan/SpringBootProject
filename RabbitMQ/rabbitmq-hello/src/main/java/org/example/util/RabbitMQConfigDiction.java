@@ -1,5 +1,10 @@
 package org.example.util;
 
+import com.rabbitmq.client.CancelCallback;
+import com.rabbitmq.client.DeliverCallback;
+
+import java.nio.charset.StandardCharsets;
+
 /**
  * Rabbit MQ 配置信息的字典
  * 用于存储配置信息
@@ -42,4 +47,19 @@ public class RabbitMQConfigDiction {
      * 批量发送消息的条数
      */
     public static final int MESSAGE_COUNT = 1000;
+    /**
+     * Fanout扇出类型的交换机名称
+     */
+    public static final String FANOUT_EXCHANGE_NAME = "log";
+    /**
+     * 消费者消费成功的回调方法
+     */
+    public static final DeliverCallback RECEIVED_SUCCESS_CALL_BACK = (consumerTag, delivery) -> {
+        System.out.println("[X] Received '" + new String(delivery.getBody(), StandardCharsets.UTF_8) + "'");
+    };
+    /**
+     * 消费者消费失败的回调方法
+     */
+    public static final CancelCallback RECEIVED_CANCEL_CALL_BACK = consumerTag ->
+            System.out.println(consumerTag + "Received is cancel!");
 }

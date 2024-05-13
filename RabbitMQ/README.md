@@ -974,7 +974,7 @@ RabbitMQ 消息传递模型的核心思想是，**生产者从不直接向队列
 
 - 标题交换（`headers`）
 
-- 扇出交换 [即发布-订阅模式]（`fanout`）
+- 扇出交换 [即广播模式]（`fanout`）
 
 #### 无名Exchange
 
@@ -1009,3 +1009,118 @@ String queueName = channel.queueDeclare().getQueue();
 我们已经创建了一个 fanout 交换机和一个队列。现在，我们需要告诉交易所向队列发送消息。交换机和队列之间的这种关系称为绑定。
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq15-binding.png)
+
+> 实例代码
+
+```java
+channel.queueBind(queueName, "logs", "");
+```
+
+如上，交换机会将“log”连接到对应队列名的队列中。
+
+### Fanout
+
+发布日志信息的生产者程序与之前的教程并无太大区别。最重要的变化是，我们现在要将消息发布到我们的日志交换中心，而不是无名交换中心。**我们需要在发送时提供路由键（routingKey），但其值在Fanout（扇出模式、广播模式）时交换机会忽略**。
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq16-Fanout.png)
+
+> 生产者代码实例
+
+所在目录（fanout/SentLog.java）
+
+```java
+package org.example.fanout;
+
+import com.rabbitmq.client.BuiltinExchangeType;
+import com.rabbitmq.client.Channel;
+import org.example.util.RabbitMQConfigDiction;
+import org.example.util.RabbitMQTestUtils;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
+import java.util.concurrent.TimeoutException;
+
+/**
+ * 作为Fanout扇出模式的发送方
+ */
+public class SentLog {
+    public static void main(String[] args) {
+        SentLog sentLog = new SentLog();
+        sentLog.testFanoutSent();
+    }
+
+    private void testFanoutSent() {
+        try (Channel channel = RabbitMQTestUtils.getChannel()) {
+            /**
+             * 声明交换机
+             * 1.交换机名称
+             * 2.交换机类型
+             */
+            channel.exchangeDeclare(RabbitMQConfigDiction.FANOUT_EXCHANGE_NAME, BuiltinExchangeType.FANOUT);
+            System.out.println("Please input the message...");
+            Scanner scanner = new Scanner(System.in);
+            while (scanner.hasNext()) {
+                String message = scanner.next();
+                // 这回是直接发送给交换机，而不是发送给具体的队列，因此队列名为空；
+                // 其实在发布订阅模式下，第二个参数也为"RoutingKey"
+                channel.basicPublish(RabbitMQConfigDiction.FANOUT_EXCHANGE_NAME, "", null, message.getBytes(StandardCharsets.UTF_8));
+                System.out.println("message: [" + message + "] is sent success!");
+            }
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+> 消费者代码实例
+
+所在目录（fanout/Received01.java&Received02.java）
+
+```java
+package org.example.fanout;
+
+import com.rabbitmq.client.BuiltinExchangeType;
+import com.rabbitmq.client.Channel;
+import org.example.util.RabbitMQTestUtils;
+
+import java.io.IOException;
+import java.util.concurrent.TimeoutException;
+
+import static org.example.util.RabbitMQConfigDiction.*;
+
+/**
+ * Fanout扇出模式的接收方1
+ */
+public class Received01 {
+    public static void main(String[] args) throws IOException, TimeoutException {
+        Received01 received01 = new Received01();
+        received01.testFanoutReceived();
+    }
+
+    private void testFanoutReceived() throws IOException, TimeoutException {
+        Channel channel = RabbitMQTestUtils.getChannel();
+        /**
+         * 声明交换机
+         * 1.交换机名称
+         * 2.交换机类型
+         */
+        channel.exchangeDeclare(FANOUT_EXCHANGE_NAME, BuiltinExchangeType.FANOUT);
+        /**
+         * 获取临时队列，队列名称随即
+         * 当消费者断开连接，队列自动删除
+         */
+        String queueName = channel.queueDeclare().getQueue();
+        /**
+         * 绑定交换机与信道
+         * 1.队列名
+         * 2.交换机名称
+         * 3.RoutingKey-为空则为Fanout广播模式
+         */
+        channel.queueBind(queueName, FANOUT_EXCHANGE_NAME, "");
+        System.out.println("Received01 Wait for received and log the message...");
+        channel.basicConsume(queueName, true, RECEIVED_SUCCESS_CALL_BACK, RECEIVED_CANCEL_CALL_BACK);
+    }
+}
+```

@@ -1031,47 +1031,25 @@ channel.queueBind(queueName, "logs", "");
 所在目录（fanout/SentLog.java）
 
 ```java
-package org.example.fanout;
-
-import com.rabbitmq.client.BuiltinExchangeType;
-import com.rabbitmq.client.Channel;
-import org.example.util.RabbitMQConfigDiction;
-import org.example.util.RabbitMQTestUtils;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
-import java.util.concurrent.TimeoutException;
-
-/**
- * 作为Fanout扇出模式的发送方
- */
-public class SentLog {
-    public static void main(String[] args) {
-        SentLog sentLog = new SentLog();
-        sentLog.testFanoutSent();
-    }
-
-    private void testFanoutSent() {
-        try (Channel channel = RabbitMQTestUtils.getChannel()) {
-            /**
-             * 声明交换机
-             * 1.交换机名称
-             * 2.交换机类型
-             */
-            channel.exchangeDeclare(RabbitMQConfigDiction.FANOUT_EXCHANGE_NAME, BuiltinExchangeType.FANOUT);
-            System.out.println("Please input the message...");
-            Scanner scanner = new Scanner(System.in);
-            while (scanner.hasNext()) {
-                String message = scanner.next();
-                // 这回是直接发送给交换机，而不是发送给具体的队列，因此队列名为空；
-                // 其实在发布订阅模式下，第二个参数也为"RoutingKey"
-                channel.basicPublish(RabbitMQConfigDiction.FANOUT_EXCHANGE_NAME, "", null, message.getBytes(StandardCharsets.UTF_8));
-                System.out.println("message: [" + message + "] is sent success!");
-            }
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
+private void testFanoutSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        /**
+         * 声明交换机
+         * 1.交换机名称
+         * 2.交换机类型
+         */
+        channel.exchangeDeclare(RabbitMQConfigDiction.FANOUT_EXCHANGE_NAME, BuiltinExchangeType.FANOUT);
+        System.out.println("Please input the message...");
+        Scanner scanner = new Scanner(System.in);
+        while (scanner.hasNext()) {
+            String message = scanner.next();
+            // 这回是直接发送给交换机，而不是发送给具体的队列，因此队列名为空；
+            // 其实在发布订阅模式下，第二个参数也为"RoutingKey"
+            channel.basicPublish(RabbitMQConfigDiction.FANOUT_EXCHANGE_NAME, "", null, message.getBytes(StandardCharsets.UTF_8));
+            System.out.println("message: [" + message + "] is sent success!");
         }
+    } catch (IOException | TimeoutException e) {
+        e.printStackTrace();
     }
 }
 ```
@@ -1165,63 +1143,40 @@ channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "warning");
 所在目录（direct/EmitLog.java）
 
 ```java
-package org.example.direct;
-
-import com.rabbitmq.client.BuiltinExchangeType;
-import com.rabbitmq.client.Channel;
-import org.example.util.RabbitMQConfigDiction;
-import org.example.util.RabbitMQTestUtils;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
-import java.util.concurrent.TimeoutException;
-
-/**
- * Direct - 直接模式，路由模式
- * 日志发送方，生产者
- */
-public class EmitLog {
-    public static void main(String[] args) {
-        EmitLog emitLog = new EmitLog();
-        emitLog.testDirectSent();
-    }
-
-    private void testDirectSent() {
-        try (Channel channel = RabbitMQTestUtils.getChannel()) {
-            String routingKey = "";
-            int count = 0;
-            /**
-             * 声明交换机
-             * 1.交换机名称
-             * 2.交换机类型
-             */
-            channel.exchangeDeclare(RabbitMQConfigDiction.DIRECT_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
-            System.out.println("Please input the message...");
-            Scanner scanner = new Scanner(System.in);
-            while (scanner.hasNext()) {
-                String message = scanner.next();
-                switch (count) {
-                    case 0:
-                        routingKey = "info";
-                        count++;
-                        break;
-                    case 1:
-                        routingKey = "error";
-                        count++;
-                        break;
-                    default:
-                        routingKey = "warning";
-                        count = 0;
-                }
-                // 这回是直接发送给交换机，而不是发送给具体的队列，因此队列名为空；
-                // 其实在发布订阅模式下，第二个参数也为"RoutingKey"
-                channel.basicPublish(RabbitMQConfigDiction.DIRECT_EXCHANGE_NAME, routingKey, null, message.getBytes(StandardCharsets.UTF_8));
-                System.out.println("message: [" + message + "], routingKey: [" + routingKey + "] is sent success!");
+private void testDirectSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        String routingKey = "";
+        int count = 0;
+        /**
+         * 声明交换机
+         * 1.交换机名称
+         * 2.交换机类型
+         */
+        channel.exchangeDeclare(RabbitMQConfigDiction.DIRECT_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
+        System.out.println("Please input the message...");
+        Scanner scanner = new Scanner(System.in);
+        while (scanner.hasNext()) {
+            String message = scanner.next();
+            switch (count) {
+                case 0:
+                    routingKey = "info";
+                    count++;
+                    break;
+                case 1:
+                    routingKey = "error";
+                    count++;
+                    break;
+                default:
+                    routingKey = "warning";
+                    count = 0;
             }
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
+            // 这回是直接发送给交换机，而不是发送给具体的队列，因此队列名为空；
+            // 其实在发布订阅模式下，第二个参数也为"RoutingKey"
+            channel.basicPublish(RabbitMQConfigDiction.DIRECT_EXCHANGE_NAME, routingKey, null, message.getBytes(StandardCharsets.UTF_8));
+            System.out.println("message: [" + message + "], routingKey: [" + routingKey + "] is sent success!");
         }
+    } catch (IOException | TimeoutException e) {
+        e.printStackTrace();
     }
 }
 ```
@@ -1231,43 +1186,24 @@ public class EmitLog {
 所在目录（direct/DirectReceived01.java&DirectReceived02.java）
 
 ```java
-package org.example.direct;
-
-import com.rabbitmq.client.BuiltinExchangeType;
-import com.rabbitmq.client.Channel;
-import org.example.util.RabbitMQTestUtils;
-
-import java.io.IOException;
-import java.util.concurrent.TimeoutException;
-
-import static org.example.util.RabbitMQConfigDiction.*;
-
-public class DirectReceived01 {
-    public static void main(String[] args) throws IOException, TimeoutException {
-        DirectReceived01 directReceived01 = new DirectReceived01();
-        directReceived01.testDirectReceived();
-    }
-
-    private void testDirectReceived() throws IOException, TimeoutException {
-        Channel channel = RabbitMQTestUtils.getChannel();
-        channel.queueDeclare(DIRECT_CONSOLE_QUEUE, false, false, false, null);
-        /**
-         * 声明交换机
-         * 1.交换机名称
-         * 2.交换机类型
-         */
-        channel.exchangeDeclare(DIRECT_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
-        /**
-         * 绑定交换机与信道
-         * 1.队列名
-         * 2.交换机名称
-         * 3.RoutingKey
-         */
-        channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "info");
-        channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "warning"); // 绑定两个Routing key
-
-        System.out.println("DirectReceived01 Wait for received and log the message...");
-        channel.basicConsume(DIRECT_CONSOLE_QUEUE, true, RECEIVED_SUCCESS_CALL_BACK, RECEIVED_CANCEL_CALL_BACK);
-    }
+private void testDirectReceived() throws IOException, TimeoutException {
+    Channel channel = RabbitMQTestUtils.getChannel();
+    channel.queueDeclare(DIRECT_CONSOLE_QUEUE, false, false, false, null);
+    /**
+     * 声明交换机
+     * 1.交换机名称
+     * 2.交换机类型
+     */
+    channel.exchangeDeclare(DIRECT_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
+    /**
+     * 绑定交换机与信道
+     * 1.队列名
+     * 2.交换机名称
+     * 3.RoutingKey
+     */
+    channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "info");
+    channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "warning"); // 绑定两个Routing key
+    System.out.println("DirectReceived01 Wait for received and log the message...");
+    channel.basicConsume(DIRECT_CONSOLE_QUEUE, true, RECEIVED_SUCCESS_CALL_BACK, RECEIVED_CANCEL_CALL_BACK);
 }
 ```

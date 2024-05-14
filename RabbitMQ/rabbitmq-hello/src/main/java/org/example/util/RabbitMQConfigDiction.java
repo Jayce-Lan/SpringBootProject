@@ -44,13 +44,27 @@ public class RabbitMQConfigDiction {
      */
     public static final String TASK_DURABLE_QUEUE = "durable_queue";
     /**
+     * 队列名称：DIRECT_CONSOLE_QUEUE，路由模式console队列
+     */
+    public static final String DIRECT_CONSOLE_QUEUE = "console";
+    /**
+     * 队列名称：DIRECT_DISK_QUEUE，路由模式disk队列
+     */
+    public static final String DIRECT_DISK_QUEUE = "disk";
+
+    /**
      * 批量发送消息的条数
      */
     public static final int MESSAGE_COUNT = 1000;
+
     /**
      * Fanout扇出类型的交换机名称
      */
     public static final String FANOUT_EXCHANGE_NAME = "log";
+    /**
+     * Direct路由类型/直接类型的交换机名称
+     */
+    public static final String DIRECT_EXCHANGE_NAME = "direct_log";
     /**
      * 消费者消费成功的回调方法
      */

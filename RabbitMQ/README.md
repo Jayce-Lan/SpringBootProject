@@ -1018,6 +1018,8 @@ channel.queueBind(queueName, "logs", "");
 
 如上，交换机会将“log”连接到对应队列名的队列中。
 
+---
+
 ### Fanout
 
 发布日志信息的生产者程序与之前的教程并无太大区别。最重要的变化是，我们现在要将消息发布到我们的日志交换中心，而不是无名交换中心。**我们需要在发送时提供路由键（routingKey），但其值在Fanout（扇出模式、广播模式）时交换机会忽略**。
@@ -1121,6 +1123,151 @@ public class Received01 {
         channel.queueBind(queueName, FANOUT_EXCHANGE_NAME, "");
         System.out.println("Received01 Wait for received and log the message...");
         channel.basicConsume(queueName, true, RECEIVED_SUCCESS_CALL_BACK, RECEIVED_CANCEL_CALL_BACK);
+    }
+}
+```
+
+---
+
+### Direct
+
+> 路由模式、直接交换机
+
+上一教程中的系统会向所有用户广播所有信息。我们希望对其进行扩展，允许根据严重程度过滤信息。例如，我们可能希望将日志信息写入磁盘的程序只接收严重错误，而不浪费磁盘空间在警告或信息日志信息上。  
+
+Fanout我们使用的是扇出交换器，它没有给我们提供太多的灵活性——它只能进行无意识的广播。  
+
+我们将改用直接（Direct）交换。直接交换背后的路由算法很简单——**消息会进入绑定密钥与消息路由密钥完全匹配的队列**。
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq17-direct.png)
+
+在此设置中，我们可以看到`direct` 交换机 X 绑定了两个队列。第一个队列绑定了`orange`绑定密钥，第二个队列有两个绑定密钥，一个是`black`绑定密钥，另一个是`green`绑定密钥。  
+
+在这种情况下，**发布到交易所的路由密钥（`Routing Key`）为`orange`的报文将被路由到 Q1 队列。路由密钥为`black`或`green`'的报文将进入 Q2**。**所有其他报文都将被丢弃**。
+
+#### 多重绑定
+
+用同一个绑定密钥绑定多个队列是完全合法的。在我们的例子中，我们可以用绑定密钥 black 在 X 和 Q1 之间添加一个绑定。在这种情况下，直接交换将像扇出一样，向所有匹配队列广播报文。路由密钥为 black 的报文将同时发送到 Q1 和 Q2。
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq18-MultipleBindings.png)
+
+#### 队列绑定
+
+当一个队列需要消费多个RoutingKey的消息时，可以同事绑定多个RoutingKey
+
+```java
+channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "info");
+channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "warning");
+```
+
+> 生产者代码实例
+
+所在目录（direct/EmitLog.java）
+
+```java
+package org.example.direct;
+
+import com.rabbitmq.client.BuiltinExchangeType;
+import com.rabbitmq.client.Channel;
+import org.example.util.RabbitMQConfigDiction;
+import org.example.util.RabbitMQTestUtils;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
+import java.util.concurrent.TimeoutException;
+
+/**
+ * Direct - 直接模式，路由模式
+ * 日志发送方，生产者
+ */
+public class EmitLog {
+    public static void main(String[] args) {
+        EmitLog emitLog = new EmitLog();
+        emitLog.testDirectSent();
+    }
+
+    private void testDirectSent() {
+        try (Channel channel = RabbitMQTestUtils.getChannel()) {
+            String routingKey = "";
+            int count = 0;
+            /**
+             * 声明交换机
+             * 1.交换机名称
+             * 2.交换机类型
+             */
+            channel.exchangeDeclare(RabbitMQConfigDiction.DIRECT_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
+            System.out.println("Please input the message...");
+            Scanner scanner = new Scanner(System.in);
+            while (scanner.hasNext()) {
+                String message = scanner.next();
+                switch (count) {
+                    case 0:
+                        routingKey = "info";
+                        count++;
+                        break;
+                    case 1:
+                        routingKey = "error";
+                        count++;
+                        break;
+                    default:
+                        routingKey = "warning";
+                        count = 0;
+                }
+                // 这回是直接发送给交换机，而不是发送给具体的队列，因此队列名为空；
+                // 其实在发布订阅模式下，第二个参数也为"RoutingKey"
+                channel.basicPublish(RabbitMQConfigDiction.DIRECT_EXCHANGE_NAME, routingKey, null, message.getBytes(StandardCharsets.UTF_8));
+                System.out.println("message: [" + message + "], routingKey: [" + routingKey + "] is sent success!");
+            }
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+> 消费者代码实例
+
+所在目录（direct/DirectReceived01.java&DirectReceived02.java）
+
+```java
+package org.example.direct;
+
+import com.rabbitmq.client.BuiltinExchangeType;
+import com.rabbitmq.client.Channel;
+import org.example.util.RabbitMQTestUtils;
+
+import java.io.IOException;
+import java.util.concurrent.TimeoutException;
+
+import static org.example.util.RabbitMQConfigDiction.*;
+
+public class DirectReceived01 {
+    public static void main(String[] args) throws IOException, TimeoutException {
+        DirectReceived01 directReceived01 = new DirectReceived01();
+        directReceived01.testDirectReceived();
+    }
+
+    private void testDirectReceived() throws IOException, TimeoutException {
+        Channel channel = RabbitMQTestUtils.getChannel();
+        channel.queueDeclare(DIRECT_CONSOLE_QUEUE, false, false, false, null);
+        /**
+         * 声明交换机
+         * 1.交换机名称
+         * 2.交换机类型
+         */
+        channel.exchangeDeclare(DIRECT_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
+        /**
+         * 绑定交换机与信道
+         * 1.队列名
+         * 2.交换机名称
+         * 3.RoutingKey
+         */
+        channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "info");
+        channel.queueBind(DIRECT_CONSOLE_QUEUE, DIRECT_EXCHANGE_NAME, "warning"); // 绑定两个Routing key
+
+        System.out.println("DirectReceived01 Wait for received and log the message...");
+        channel.basicConsume(DIRECT_CONSOLE_QUEUE, true, RECEIVED_SUCCESS_CALL_BACK, RECEIVED_CANCEL_CALL_BACK);
     }
 }
 ```

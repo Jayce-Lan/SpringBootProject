@@ -47,8 +47,7 @@ public class EmitLog {
                         routingKey = "warning";
                         count = 0;
                 }
-                // 这回是直接发送给交换机，而不是发送给具体的队列，因此队列名为空；
-                // 其实在发布订阅模式下，第二个参数也为"RoutingKey"
+                // 在发布订阅模式下，第二个参数也为"RoutingKey"
                 channel.basicPublish(RabbitMQConfigDiction.DIRECT_EXCHANGE_NAME, routingKey, null, message.getBytes(StandardCharsets.UTF_8));
                 System.out.println("message: [" + message + "], routingKey: [" + routingKey + "] is sent success!");
             }

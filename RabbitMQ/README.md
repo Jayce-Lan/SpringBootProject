@@ -1186,3 +1186,117 @@ private void testDirectReceived() throws IOException, TimeoutException {
     channel.basicConsume(DIRECT_CONSOLE_QUEUE, true, RECEIVED_SUCCESS_CALL_BACK, RECEIVED_CANCEL_CALL_BACK);
 }
 ```
+
+---
+
+### Topics
+
+> 主题模式
+
+在上一教程中，我们改进了日志系统。我们不再使用只能进行虚假广播的Fanout交换机，而是使用了Direct交换机，并获得了选择性接收日志的可能性。  
+
+虽然使用直接交换机改进了我们的系统，但它仍有局限性--不能根据多个条件进行路由选择。  
+
+在我们的日志系统中，我们可能不仅想根据严重性订阅日志，还想根据日志的来源订阅日志。您可能从 syslog unix 工具中了解到这一概念，它可以根据严重性（info/warn/crit......）和设施（auth/cron/kern......）路由日志。  
+
+这给了我们很大的灵活性--我们可能只想监听来自 "cron "的严重错误，但也想监听来自 "kern "的所有日志。  
+
+要在日志系统中实现这一点，我们需要了解更复杂的`Topics` 主题交换。
+
+#### Topics的要求
+
+**发送到主题交换中心的报文不能任意拼写 routing_key——它必须是一个用点分隔的单词列表**。这些单词可以是任何内容，但通常会指定与信息相关的一些特征。以下是几个有效的路由密钥示例 `stock.usd.nyse`、`nyse.vyw`、`quick.orange.rabbit`。路由密钥的字数不限，最多 255 字节。  
+
+绑定密钥也必须采用相同的形式。主题交换背后的逻辑与直接交换类似--使用特定路由密钥发送的信息将被传送到所有使用匹配绑定密钥绑定的队列。不过，绑定密钥有两种重要的特殊情况：  
+
+- `*`（星号）可以完全替代一个单词。  
+
+- `#`（散列）可以替代零个或多个单词。
+
+#### Topics匹配实例
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq19-topics.png)
+
+在本例中，我们要发送的信息都是描述动物的。这些信息将使用由三个单词（两个点）组成的路由密钥发送。路由键中的第一个单词描述速度，第二个单词描述颜色，第三个单词描述物种：`<speed>.<colour>.<species>`
+
+我们创建了三个绑定：Q1 与绑定键 `*.orange.*`绑定，Q2 与 `*.*.rabbit `和 `lazy.#`绑定。  
+
+这些绑定可以概括为  
+
+- Q1 对所有橙色动物都感兴趣。  
+
+- Q2 希望听到所有关于兔子和懒惰动物的信息。  
+
+路由关键字设置为 `quick.orange.rabbit`的报文将同时传送到这两个队列。信息 `lazy.orange.elephant `也会同时发送到这两个队列。另一方面，`quick.orange.fox`只会发送到第一个队列，而 `lazy.brown.fox`只会发送到第二个队列。尽管 `lazy.pink.rabbit`**匹配了两个绑定，但它只会被送到第二个队列一次。**`quick.brown.fox`不匹配任何绑定，因此会被丢弃。
+
+如果我们违反约定，发送包含一个或四个单词的信息，如 `orange`或 `quick.orange.new.rabbit`，会发生什么情况呢？这些信息与任何绑定都不匹配，因此会丢失。  
+
+另一方面，`lazy.orange.new.rabbit`虽然有四个单词，但它会匹配最后一个绑定，并被传送到第二个队列。
+
+> *tips: 当同一个队列被匹配两次，那么消息只会被消费一次。*
+> 
+> 主题交换功能强大，可以像其他交换一样运行。  
+> 
+> 当队列使用 "#"（哈希）绑定密钥绑定时，无论路由密钥如何，它都会接收所有信息，就像在Fanout扇出交换中一样。  
+> 
+> 如果绑定中没有使用特殊字符 "*"（星号）和 "#"（散列），则主题交换的行为与Direct直接交换无异。
+
+#### 代码实例
+
+> 生产者代码实例
+
+所在位置（topics/TopicsEmitLog.java）
+
+```java
+private void testTopicsSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        channel.exchangeDeclare(RabbitMQConfigDiction.TOPICS_EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
+        Map<String, String> bindingKeyMap = new HashMap<>();
+        bindingKeyMap.put("quick.orange.rabbit", "R1&&R2");
+        bindingKeyMap.put("lazy.orange.elephant", "R1&R2");
+        bindingKeyMap.put("quick.orange.fox", "R1");
+        bindingKeyMap.put("lazy.brown.fox", "R2");
+        bindingKeyMap.put("lazy.pink.rabbit", "R2");
+        bindingKeyMap.put("quick.brown.fox", "NULL");
+        bindingKeyMap.put("quick.orange.male.rabbit", "NULL");
+        bindingKeyMap.put("lazy.orange.male.rabbit", "R2");
+        bindingKeyMap.forEach((routingKey, message) -> {
+            System.out.println("message: [" + message + "], routingKey: [" + routingKey + "] is sent success!");
+            try {
+                channel.basicPublish(RabbitMQConfigDiction.TOPICS_EXCHANGE_NAME, routingKey, 
+                        null, message.getBytes(StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    } catch (IOException | TimeoutException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+> 消费者代码实例
+
+所在位置（topics/TopicsReceived01.java&TopicsReceived02.java）
+
+```java
+private void testTopicsReceived() throws IOException, TimeoutException {
+    Channel channel = RabbitMQTestUtils.getChannel();
+    String queueName = channel.queueDeclare().getQueue();
+    channel.exchangeDeclare(RabbitMQConfigDiction.TOPICS_EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
+    /**
+     * 绑定队列、交换机、规则
+     * 1.队列名
+     * 2.交换机
+     * 3.规则
+     */
+    channel.queueBind(queueName, RabbitMQConfigDiction.TOPICS_EXCHANGE_NAME, TOPICS_RULE_02_ONLY_RABBIT);
+    channel.queueBind(queueName, RabbitMQConfigDiction.TOPICS_EXCHANGE_NAME, TOPICS_RULE_03_LAZY_ALL); // 绑定两个规则
+    System.out.println("Received02 Wait for received and log the message...");
+    channel.basicConsume(queueName, true,
+            RabbitMQConfigDiction.TOPICS_RECEIVED_SUCCESS_CALL_BACK,
+            RabbitMQConfigDiction.RECEIVED_CANCEL_CALL_BACK);
+}
+```
+
+---

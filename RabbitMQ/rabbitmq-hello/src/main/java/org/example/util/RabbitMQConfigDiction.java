@@ -23,6 +23,7 @@ public class RabbitMQConfigDiction {
      * 用户名
      */
     public static final String USER_NAME = "guest";
+
     /**
      * 密码
      */
@@ -66,10 +67,23 @@ public class RabbitMQConfigDiction {
      */
     public static final String DIRECT_EXCHANGE_NAME = "direct_log";
     /**
-     * 消费者消费成功的回调方法
+     * Topics主题模式的交换机名称
+     */
+    public static final String TOPICS_EXCHANGE_NAME = "topics_log";
+
+    /**
+     * 消费者消费成功的普通回调方法
      */
     public static final DeliverCallback RECEIVED_SUCCESS_CALL_BACK = (consumerTag, delivery) -> {
         System.out.println("[X] Received '" + new String(delivery.getBody(), StandardCharsets.UTF_8) + "'");
+    };
+    /**
+     * Topics模式下成功回调
+     * 使用 message.getEnvelope().getRoutingKey() 获取规则，即 RoutingKey
+     */
+    public static final DeliverCallback TOPICS_RECEIVED_SUCCESS_CALL_BACK = (consumerTag, message) -> {
+        System.out.println("[X] Received ... The message is [" + new String(message.getBody(), StandardCharsets.UTF_8)
+                + "] And the RoutingKey type is [" + message.getEnvelope().getRoutingKey() + "]");
     };
     /**
      * 消费者消费失败的回调方法

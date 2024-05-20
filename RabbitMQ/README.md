@@ -1300,3 +1300,221 @@ private void testTopicsReceived() throws IOException, TimeoutException {
 ```
 
 ---
+
+### 死信队列
+
+#### 死信队列的概念
+
+死信，顾名思义就是无法被消费的消息。一般来说，producer将消息投递到broker或者queue里了，consumer从queue取出消息进行消费，但是某些时候由于特定的原因导致queue中的某些消息无法被消费，这样的消息如果没有后续的处理，就变成了死信，有死信自然就有死信队列。
+
+> 应用场景
+
+- 为了保证订单业务的消息数据不丢失，需要使用到Rabbit MQ的死信队列机制，当消息消费发生异常时，将消息投入到死信队列中（防止消息丢失）
+
+- 用户在商城下单成功并点击去支付后在指定的时间未支付时自动失效
+
+#### 死信的来源
+
+- 消息TTL（存活时间）过期
+
+- 队列达到最大长度（队列已满，无法继续添加数据到MQ当中）
+
+- 消息被拒绝（`basic.reject`或`basic.nack`）并且`requeue=false` （不放回队列）
+
+#### 死信实战
+
+##### 代码架构图
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq20-deadQueue.png)
+
+*tips：C1和C2不会同时消费，只有C1不消费的情况下才会被C2消费；并且C2的消息是由C1接受失败后转发给死信交换机并转发给C2的，而不是生产者生产后直接放入死信交换机的*
+
+##### 设置死信参数
+
+> 消费者模块
+
+在声明队列的`Channle.queueDeclare(String queue, boolean durable, boolean exclusive, boolean autoDelete, Map<String, Object> arguments)` 方法中，`arguments` 参数可以存储诸如死信队列交换机、死信队列Routing Key、TTL超时时间、最大队列长度等信息。
+
+```java
+/**
+ * 正常队列声明
+ * 在此处，正常的交换机声明需要用到最后的map参数指定消息成为死信后要转发至死信交换机
+ * 队列声明中的arguments用于承接转发规则等信息
+ */
+Map<String, Object> arguments = new HashMap<>();
+// 正常队列声明设置死信交换机
+arguments.put("x-dead-letter-exchange", RabbitMQConfigDiction.DEAD_EXCHANGE_NAME);
+// 设置死信RoutingKey
+arguments.put("x-dead-letter-routing-key", DEAD_ROUTING_KEY);
+// 过期时间 - 10s = 10000ms ，也可以在生产者进行声明
+arguments.put("x-message-ttl", 10000);
+// 设置队列最大长度 - 一旦超过此长度则会交由死信队列消费
+arguments.put("x-max-length", 6);
+channel.queueDeclare(RabbitMQConfigDiction.NORMAL_QUEUE, false, false, false, arguments);
+```
+
+> 生产者模块
+
+在生产者当中，可以通过`basicPublish(String exchange, String routingKey, BasicProperties props, byte[] body)` 中的 `props` 参数构建过程添加诸如过期时间等参数。
+
+```java
+// 设置死信参数 TTL时间
+AMQP.BasicProperties props = new AMQP.BasicProperties()
+        .builder()
+        .expiration("10000") // 过期时间，ms
+        .build();
+channel.basicPublish(RabbitMQConfigDiction.NORMAL_EXCHANGE_NAME, NORMAL_ROUTING_KEY, 
+        props,
+        message.getBytes(StandardCharsets.UTF_8));
+```
+
+##### TTL过期
+
+> 生产者模块
+
+所在位置（deadmsgqueue/DeadLetterProducer.java）
+
+```java
+/**
+ * 生产者 - 
+ * 生产者只需要
+ * 因为死信转发
+ */private void testMaxTTLSent() {
+    try (Channel channel = RabbitMQTestUtils.getChannel()) {
+        // 设置死信参数 TTL时间
+        AMQP.BasicProperties props = new AMQP.BasicProperties()
+                .builder()
+                .expiration("10000") // 过期时间，ms
+                .build();
+        for (int i = 0; i < 10; i++) {
+            String message = "info " + i;
+            System.out.println("Producer sent message is : [" + message + "]");
+            channel.basicPublish(RabbitMQConfigDiction.NORMAL_EXCHANGE_NAME, NORMAL_ROUTING_KEY, props,
+                    message.getBytes(StandardCharsets.UTF_8));
+        }
+    } catch (IOException | TimeoutException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+> 正常消费者模块
+
+所在位置（deadmsgqueue/NormalConsumer.java）
+
+```java
+/**
+ * 正常消费方法
+ * 正常消费失败后，由正常交换机转发给死信交换机，之后由后者对应消费者进行消费
+ * 而不是直接由生产者直接发送给死信交换机
+ */
+private void testNormalReceived() throws IOException, TimeoutException {
+    Channel channel = RabbitMQTestUtils.getChannel();
+    // 独自生成队列与交换机，用作正常消费的队列与交换机
+    /**
+     * 正常队列声明
+     * 在此处，正常的交换机声明需要用到最后的map参数指定消息成为死信后要转发至死信交换机
+     * 队列声明中的arguments用于承接转发规则等信息
+     */
+    Map<String, Object> arguments = new HashMap<>();
+    // 正常队列声明设置死信交换机
+    arguments.put("x-dead-letter-exchange", RabbitMQConfigDiction.DEAD_EXCHANGE_NAME);
+    // 设置死信RoutingKey
+    arguments.put("x-dead-letter-routing-key", DEAD_ROUTING_KEY);
+    channel.queueDeclare(RabbitMQConfigDiction.NORMAL_QUEUE, false, false, false, arguments);
+    // 死信队列声明
+    channel.queueDeclare(RabbitMQConfigDiction.DEAD_QUEUE, false, false, false, null);
+    // 声明交换机，类型为direct
+    channel.exchangeDeclare(RabbitMQConfigDiction.NORMAL_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
+    channel.exchangeDeclare(RabbitMQConfigDiction.DEAD_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
+    // 关系绑定
+    channel.queueBind(RabbitMQConfigDiction.NORMAL_QUEUE, RabbitMQConfigDiction.NORMAL_EXCHANGE_NAME, NORMAL_ROUTING_KEY);
+    channel.queueBind(RabbitMQConfigDiction.DEAD_QUEUE, RabbitMQConfigDiction.DEAD_EXCHANGE_NAME, DEAD_ROUTING_KEY);
+    // 交换机与队列绑定
+    System.out.println("Normal is Received ...");
+    channel.basicConsume(RabbitMQConfigDiction.NORMAL_QUEUE, true,
+            RabbitMQConfigDiction.TOPICS_RECEIVED_SUCCESS_CALL_BACK,
+            RabbitMQConfigDiction.RECEIVED_CANCEL_CALL_BACK);
+}
+```
+
+> 死信消费者
+
+所在位置（deadmsgqueue/DeadLetterConsumer.java）
+
+```java
+/**
+ * 正常消费方法
+ * 正常消费失败后，由正常交换机转发给死信交换机，之后由后者对应消费者进行消费
+ * 而不是直接由生产者直接发送给死信交换机
+ */
+private void testDeadLetterReceived() throws IOException, TimeoutException {
+    Channel channel = RabbitMQTestUtils.getChannel();
+    // 死信队列声明
+    channel.queueDeclare(RabbitMQConfigDiction.DEAD_QUEUE, false, false, false, null);
+    // 声明交换机，类型为direct
+    channel.exchangeDeclare(RabbitMQConfigDiction.DEAD_EXCHANGE_NAME, BuiltinExchangeType.DIRECT);
+    // 关系绑定
+    channel.queueBind(RabbitMQConfigDiction.DEAD_QUEUE, RabbitMQConfigDiction.DEAD_EXCHANGE_NAME, DEAD_ROUTING_KEY);
+    // 交换机与队列绑定
+    System.out.println("DeadLetterConsumer is Received ...");
+    channel.basicConsume(RabbitMQConfigDiction.DEAD_QUEUE, true,
+            RabbitMQConfigDiction.TOPICS_RECEIVED_SUCCESS_CALL_BACK,
+            RabbitMQConfigDiction.RECEIVED_CANCEL_CALL_BACK);
+}
+```
+
+##### 最大队列长度
+
+只需要将上方**生产者超时参数部分屏蔽，并且在正常消费者中的队列声明参数加入以下属性**即可
+
+```java
+// 设置队列最大长度 - 一旦超过此长度则会交由死信队列消费
+arguments.put("x-max-length", 6);
+```
+
+此时，如果生产者发送的信息，正常消费者有超过6条未消费，就会转发到死信交换机中。
+
+##### 消息被拒
+
+- 将消费者的最大长度、超时设定部分代码屏蔽，并且重写消息接收成功后的回调函数
+
+- 消费成功回调函数中需要声明拒收消息、是否返回队列等属性
+
+- 回调函数中除了加入拒收方法`basicReject(long deliveryTag, boolean requeue)` 还要加入接收应答`basicAck(long deliveryTag, boolean multiple)` 方法
+
+- 需要开启手动应答模式
+
+```java
+/**
+ * 声明队列拒收
+ * 1.队列标签
+ * 2.是否返回队列 - 指当前正常normal队列，而不是死信队列
+ */
+channel.basicReject(message.getEnvelope().getDeliveryTag(), false);
+```
+
+> 重写的消费成功回调方法
+
+```java
+DeliverCallback deliverCallback = (consumerTag, message) -> {
+    String msg = new String(message.getBody(), StandardCharsets.UTF_8);
+    if (msg.contains("5")) {
+        System.out.println("[!] This message is dont received, and sent to dead exchange: [" + msg + "]");
+        /**
+         * 声明队列拒收
+         * 1.队列标签
+         * 2.是否返回队列 - 指当前正常normal队列，而不是死信队列
+         */
+        channel.basicReject(message.getEnvelope().getDeliveryTag(), false);
+    } else {
+        System.out.println("[X] Received ... The message is [" + msg
+                + "] And the RoutingKey type is [" + message.getEnvelope().getRoutingKey() + "]");
+        channel.basicAck(message.getEnvelope().getDeliveryTag(), false);
+    }
+};
+// 需要开启手动应答
+channel.basicConsume(RabbitMQConfigDiction.NORMAL_QUEUE, false,
+        deliverCallback,
+        RabbitMQConfigDiction.RECEIVED_CANCEL_CALL_BACK);
+```

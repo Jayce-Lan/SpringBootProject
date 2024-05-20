@@ -10,8 +10,7 @@ import java.util.concurrent.TimeoutException;
  */
 public class RabbitMQTest {
     public static void main(String[] args) throws IOException, TimeoutException {
-        RabbitMQTest rabbitMQTest = new RabbitMQTest();
-        rabbitMQTest.testGetQueue();
+        RabbitMQTestUtils.deleteDurableQueue("normal_queue");
     }
 
     /**

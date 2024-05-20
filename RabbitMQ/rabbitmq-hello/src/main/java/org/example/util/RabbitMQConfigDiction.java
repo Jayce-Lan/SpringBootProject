@@ -16,18 +16,18 @@ public class RabbitMQConfigDiction {
     public static final String MQ_HOST = "127.0.0.1";
     /**
      * VirtualHost
-     * 相当于SQL的数据库，本次使用的为-/hello
+     * 相当于SQL的数据库，本次使用的为/hello
      */
     public static final String VIRTUAL_HOST = "/hello";
     /**
      * 用户名
      */
     public static final String USER_NAME = "guest";
-
     /**
      * 密码
      */
     public static final String PASSWORD = "guest";
+
     /**
      * 队列名称：Hello World的队列-hello
      */
@@ -52,6 +52,14 @@ public class RabbitMQConfigDiction {
      * 队列名称：DIRECT_DISK_QUEUE，路由模式disk队列
      */
     public static final String DIRECT_DISK_QUEUE = "disk";
+    /**
+     * 死信队列-正常消费者的队列名称
+     */
+    public static final String NORMAL_QUEUE = "normal_queue";
+    /**
+     * 死信队列-死信消费者的队列名称
+     */
+    public static final String DEAD_QUEUE = "dead_queue";
 
     /**
      * 批量发送消息的条数
@@ -70,21 +78,27 @@ public class RabbitMQConfigDiction {
      * Topics主题模式的交换机名称
      */
     public static final String TOPICS_EXCHANGE_NAME = "topics_log";
+    /**
+     * 死信队列-正常消费者所用交换机名称
+     */
+    public static final String NORMAL_EXCHANGE_NAME = "normal_exchange";
+    /**
+     * 死信队列-死信消费者所用交换机名称
+     */
+    public static final String DEAD_EXCHANGE_NAME = "dead_exchange";
 
     /**
      * 消费者消费成功的普通回调方法
      */
-    public static final DeliverCallback RECEIVED_SUCCESS_CALL_BACK = (consumerTag, delivery) -> {
+    public static final DeliverCallback RECEIVED_SUCCESS_CALL_BACK = (consumerTag, delivery) ->
         System.out.println("[X] Received '" + new String(delivery.getBody(), StandardCharsets.UTF_8) + "'");
-    };
     /**
      * Topics模式下成功回调
      * 使用 message.getEnvelope().getRoutingKey() 获取规则，即 RoutingKey
      */
-    public static final DeliverCallback TOPICS_RECEIVED_SUCCESS_CALL_BACK = (consumerTag, message) -> {
+    public static final DeliverCallback TOPICS_RECEIVED_SUCCESS_CALL_BACK = (consumerTag, message) ->
         System.out.println("[X] Received ... The message is [" + new String(message.getBody(), StandardCharsets.UTF_8)
                 + "] And the RoutingKey type is [" + message.getEnvelope().getRoutingKey() + "]");
-    };
     /**
      * 消费者消费失败的回调方法
      */

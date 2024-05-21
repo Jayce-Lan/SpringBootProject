@@ -1518,3 +1518,298 @@ channel.basicConsume(RabbitMQConfigDiction.NORMAL_QUEUE, false,
         deliverCallback,
         RabbitMQConfigDiction.RECEIVED_CANCEL_CALL_BACK);
 ```
+
+---
+
+## Spring AMQP
+
+使用Spring Boot整合Spring AMQP实现Rabbit MQ
+
+> 关键依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-amqp</artifactId>
+    <version>3.1.5</version>
+</dependency>
+```
+
+### 延迟队列
+
+其实是上一节死信队列中`TTL过期` 的一个延伸；**相当于C1被关闭，经过TTL的超时时间后由normal交换机转到dead交换机，随后直接被C2消费**。
+
+#### 延迟队列概念
+
+延迟队列内部是有序的，最重要的特性就体现在它的延迟属性上。延迟队列中的元素是希望在指定时间到了以后或之前取出和处理，简单来说，延迟队列就是用来存放需要在指定时间被处理的元素的队列。
+
+#### 延迟队列使用场景
+
+- 订单在十分钟内未支付自动取消
+
+- 新创建的店铺如果在10天内未上传商品，则自动发送信息提醒
+
+- 用户注册成功后，如果三天内未登录则进行短信提醒
+
+- 用户发起退款，如果三天内没有得到处理则通知相关运营人员
+
+- 预定会议后，需要在预定的时间点前10分钟通知各个与会人员参与会议
+
+以上场景都有一个特点，需要在某个事件发生之后或者之前的指定时间点前完成某一项任务，如发生订单事件，在十分钟后检查该订单支付状态，然后将未支付的订单进行关闭；看起来似乎使用定时任务，一直轮询查询，每秒查一次，但是如果短期内订单量很大，活动期间达到百万甚至千万级别，那么使用轮询是不可群的，会给数据库造成很大压力，无法满足业务要求且性能低下。
+
+#### 整合Spring Boot
+
+> 项目所需依赖
+
+```xml
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.6.10</version>
+</parent>
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-amqp -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-amqp</artifactId>
+        <version>3.1.5</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.springframework.amqp/spring-rabbit-test -->
+    <dependency>
+        <groupId>org.springframework.amqp</groupId>
+        <artifactId>spring-rabbit-test</artifactId>
+        <version>3.1.5</version>
+        <scope>test</scope>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/com.alibaba/fastjson -->
+    <dependency>
+        <groupId>com.alibaba</groupId>
+        <artifactId>fastjson</artifactId>
+        <version>1.2.83</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/io.springfox/springfox-swagger2 -->
+    <dependency>
+        <groupId>io.springfox</groupId>
+        <artifactId>springfox-swagger2</artifactId>
+        <version>2.9.2</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/io.springfox/springfox-swagger-ui -->
+    <dependency>
+        <groupId>io.springfox</groupId>
+        <artifactId>springfox-swagger-ui</artifactId>
+        <version>2.9.2</version>
+    </dependency>
+</dependencies>
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <version>2.6.10</version>
+            <!-- 如果使用了lombok -->
+            <configuration>
+            <excludes>
+                <exclude>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                </exclude>
+            </excludes>
+        </configuration>
+            <!-- 如果使用了lombok -->
+        </plugin>
+    </plugins>
+</build>
+```
+
+> 添加SwaggerConfig
+
+添加SwaggerConfig方便使用Swagger进行测试（由于项目启动异常已经屏蔽该部分代码，改用postman进测试）
+
+```java
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import springfox.documentation.builders.ApiInfoBuilder;
+import springfox.documentation.service.ApiInfo;
+import springfox.documentation.service.Contact;
+import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spring.web.plugins.Docket;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
+
+@Configuration
+@EnableSwagger2
+public class SwaggerConfig {
+    @Bean
+    public Docket webApiConfig() {
+        return new Docket(DocumentationType.SWAGGER_2)
+                .groupName("webApi")
+                .apiInfo(webApiInfo())
+                .select().build();
+    }
+
+    private ApiInfo webApiInfo() {
+        return new ApiInfoBuilder()
+                .title("rabbitmq接口文档")
+                .description("本文档描述了Rabbit MQ微服务接口定义")
+                .version("v1.0.0")
+                .contact(new Contact("Jayce", "http://127.0.0.1", "jayce404@foxmail.com")) // 一些个人信息随意填写
+                .build();
+    }
+}
+```
+
+> 配置文件application.yml
+
+```yml
+server:
+  port: 8999
+
+# mq
+spring:
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /hello
+```
+
+#### 队列TTL
+
+##### 代码架构图
+
+创建两个队列QA和QB，两者队列 TTL分贝设置为10S和40S，然后再创建一个交换机X和死信交换机Y，它们的类型都是`direct` ，创建一个死信队列QD，它们绑定关系如下：
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq21-TTL.png)
+
+##### 配置文件代码
+
+在之前未整合Spring AMQP时，我们的队列创建、声明，交换机创建、声明均放在生产者和消费者中，现在我们可以**单独创建一个配置类来存储队列、交换机的声明及绑定信息**。
+
+由于此处代码重复率较高，因此只做几个举例，详见springboot-rabbitmq的config/TtlQueueConfig.java
+
+> 交换机声明方法
+
+```java
+@Bean("yDlExchange")
+public DirectExchange yDlExchange() {
+    return new DirectExchange(DEAD_LETTER_EXCHANGE_Y);
+}
+```
+
+> 队列声明方法
+
+```java
+@Bean("queueQA")
+public Queue queueQA() {
+    Map<String, Object> arguments = new HashMap<>(3);
+    // 正常队列声明设置死信交换机
+    arguments.put("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE_Y);
+    // 设置死信RoutingKey
+    arguments.put("x-dead-letter-routing-key", ROUTING_KEY_YD);
+    arguments.put("x-message-ttl", 10000);
+    return QueueBuilder // 构建一个队列
+            .durable(QUEUE_A) // 队列名称
+            .withArguments(arguments) // 相当于Java声明中的参数map
+            .build();
+}
+@Bean("queueDlQD")
+public Queue queueDlQD() {
+    return QueueBuilder.durable(DEAD_LETTER_QUEUE_D).build();
+}
+```
+
+> 绑定方法
+
+此处采用了两种绑定形式，一种是直接使用方法体内的队列、交换机进行声明；一种是使用Spring依赖注入进行声明
+
+```java
+/**
+ * 队列QA与交换机X绑定
+ * @return
+ */
+@Bean
+public Binding queueQABindingExchangeX() {
+    return BindingBuilder.bind(queueQA())
+            .to(xExchange())
+            .with(ROUTING_KEY_XA);
+}
+/**
+ * 队列QB与交换机X绑定
+ * @return
+ */
+@Bean
+public Binding queueQBBindingExchangeX(@Qualifier("queueQB")Queue queueQB,
+                                       @Qualifier("xExchange") DirectExchange xExchange) {
+    return BindingBuilder.bind(queueQB).to(xExchange).with(ROUTING_KEY_XB);
+}
+```
+
+##### 生产者与消费者
+
+与之前Java中的`Channel.basicPublish()` 不同，在Spring AMQP中可以使用依赖注入将RabbitTemplate注入到模块中，并在生产者和消费者使用：
+
+- 生产者使用的是`RabbitTemplate.convertAndSend()` 进行生产者消息发送
+
+> 生产者
+
+所在位置（controller/SentMsgController.java）
+
+```java
+@Resource
+private RabbitTemplate rabbitTemplate;
+/**
+ * 队列TTL的消息发送
+ * @param message 发送消息
+ */
+@PostMapping("sendMsg01")
+public void sendMsg01(String message) {
+    log.info("[X]The message is : [{}] that is send success!", message);
+    rabbitTemplate.convertAndSend(EXCHANGE_X, ROUTING_KEY_XA, message.getBytes(StandardCharsets.UTF_8));
+    rabbitTemplate.convertAndSend(EXCHANGE_X, ROUTING_KEY_XB, message.getBytes(StandardCharsets.UTF_8));
+}
+```
+
+> 消费者
+
+与生产者不同，**消费者是通过监听来实现消费的**
+
+所在位置（consumer/DeadLetterQueueConsumer.java）
+
+```java
+import com.rabbitmq.client.Channel;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+
+import static org.example.util.TtlCommonDiction.DEAD_LETTER_QUEUE_D;
+
+/**
+ * 队列TTL - 消费者
+ *
+ */
+@Component
+@Slf4j
+public class DeadLetterQueueConsumer {
+    @RabbitListener(queues = DEAD_LETTER_QUEUE_D)
+    public void receivedQDMsg(Message message, Channel channel) {
+        log.info("[X]Received message success, the message is [{}], and routing Key is [{}]",
+                new String(message.getBody(), StandardCharsets.UTF_8),
+                message.getMessageProperties().getReceivedRoutingKey());
+    }
+}
+```

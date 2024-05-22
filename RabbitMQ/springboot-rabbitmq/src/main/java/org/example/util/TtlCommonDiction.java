@@ -30,6 +30,15 @@ public class TtlCommonDiction {
      */
     public static final String ROUTING_KEY_XB = "xb";
     /**
+     * 普通队列 queue_c
+     * 不设置TTL延迟，交由生产者进行设置
+     */
+    public static final String QUEUE_C = "queue_qc";
+    /**
+     * 绑定QC的Routing Key
+     */
+    public static final String ROUTING_KEY_XC = "xc";
+    /**
      * 死信队列 queue_b
      */
     public static final String DEAD_LETTER_QUEUE_D = "queue_qd_dl";

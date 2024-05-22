@@ -39,8 +39,8 @@ public class TtlQueueConfig {
     }
 
     /**
-     * TTL为10s的普通交换机
-     * @return TTL为10s的普通交换机
+     * TTL为10s的普通队列
+     * @return TTL为10s的普通队列
      */
     @Bean("queueQA")
     public Queue queueQA() {
@@ -56,8 +56,8 @@ public class TtlQueueConfig {
                 .build();
     }
     /**
-     * TTL为40s的普通交换机
-     * @return TTL为10s的普通交换机
+     * TTL为40s的普通队列
+     * @return TTL为10s的普通队列
      */
     @Bean("queueQB")
     public Queue queueQB() {
@@ -66,6 +66,18 @@ public class TtlQueueConfig {
         arguments.put("x-dead-letter-routing-key", ROUTING_KEY_YD);
         arguments.put("x-message-ttl", 40000);
         return QueueBuilder.durable(QUEUE_B).withArguments(arguments)
+                .build();
+    }
+    /**
+     * 不设置TTL，交由生产者进行设置
+     * @return 无TTL的队列
+     */
+    @Bean("queueQC")
+    public Queue queueQC() {
+        Map<String, Object> arguments = new HashMap<>(2);
+        arguments.put("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE_Y);
+        arguments.put("x-dead-letter-routing-key", ROUTING_KEY_YD);
+        return QueueBuilder.durable(QUEUE_C).withArguments(arguments)
                 .build();
     }
 
@@ -88,18 +100,33 @@ public class TtlQueueConfig {
                 .to(xExchange())
                 .with(ROUTING_KEY_XA);
     }
+
     /**
      * 队列QB与交换机X绑定
-     * @return
+     * @param queue 队列QB
+     * @param exchange 交换机X
+     * @return 返回绑定关系
      */
     @Bean
-    public Binding queueQBBindingExchangeX(@Qualifier("queueQB")Queue queueQB,
-                                           @Qualifier("xExchange") DirectExchange xExchange) {
-        return BindingBuilder.bind(queueQB).to(xExchange).with(ROUTING_KEY_XB);
+    public Binding queueQBBindingExchangeX(@Qualifier("queueQB")Queue queue,
+                                           @Qualifier("xExchange") DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_XB);
+    }
+
+    /**
+     * 队列QC与交换机X绑定
+     * @param queue 队列QC
+     * @param exchange 交换机X
+     * @return 返回绑定关系
+     */
+    @Bean
+    public Binding queueQCBindingExchangeX(@Qualifier("queueQC")Queue queue,
+                                           @Qualifier("xExchange") DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_XC);
     }
     @Bean
-    public Binding queueQDBindingExchangeY(@Qualifier("queueDlQD")Queue queueDlQD,
-                                           @Qualifier("yDlExchange") DirectExchange yDlExchange) {
-        return BindingBuilder.bind(queueDlQD).to(yDlExchange).with(ROUTING_KEY_YD);
+    public Binding queueQDBindingExchangeY(@Qualifier("queueDlQD")Queue queue,
+                                           @Qualifier("yDlExchange") DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_YD);
     }
 }

@@ -10,11 +10,15 @@ Rabbit MQ是一个消息中间件，它接受并转发消息。可以把它当�
 
 如果订单系统最多能处理一万次订单，这个处理能力正常时绰绰有余。但是高峰时两万次下单就无法处理，只能限制订单超过一万后不允许用户下单，使用消息队列做缓冲（排队），我们可以取消这个限制，把一秒内下单分散成一段时间处理，这时候有些用户可能需要下单后十几秒才有成功反馈，但总比不能下单的体验要好。
 
+图：*img/mq1-llxf.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq1-llxf.png)
 
 > 降低藕合调用给用户带来的不流畅体验
 
  假如一个系统有订单系统、库存系统、物流系统、支付系统。用户创建订单后如果耦合调用库存系统、物流系统、支付系统，任何一个系统出故障订单都会异常。当转变为基于队列的方式后，系统间调用的问题会少很多。假如物流系统发生故障需要几分钟修复，在这几分钟里物流系统要处理的内存被缓存在消息队列中，用户的下单可以正常完成。当物流系统恢复后，继续处理订单信息即可，中单用户不会感受到系统故障，提升系统的可用性。
+
+图：*img/mq2-yyjo.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq2-yyjo.png)
 
@@ -31,6 +35,8 @@ Rabbit MQ是一个消息中间件，它接受并转发消息。可以把它当�
 使用MQ可以使用消息总线很方便的解决这个问题：
 
 A调用B服务后，只需要监听B处理完成的信息，当B处理完成后，会发送一条消息给MQ，MQ会将此消息转发给A服务。这样，A服务既不用循环调用B的查询API，也不用提供CALL_BACK API。同样B服务也不需要这些操作。A服务还能及时得到异步处理成功的消息。
+
+图：*img/mq3-ybcl.png*
 
 <img title="" src="file:///Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq3-ybcl.png" alt="" width="288">
 
@@ -71,6 +77,8 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 
 ### Rabbit MQ核心部分（六大模式）
 
+图：*img/mq4-hxms.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq4-hxms.png)
 
 简单模式（Hello World）
@@ -88,6 +96,8 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 *~~RPC模式~~* 
 
 ### RabbitMQ工作原理
+
+图：*img/mq5-gzyl.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq5-gzyl.png)
 
@@ -150,6 +160,8 @@ public static Channel getChannel() throws IOException, TimeoutException {
 ```
 
 ### Hello World
+
+图：*img/mq6-hello.png*
 
 <img src="file:///Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq6-hello.png" title="" alt="" width="276">
 
@@ -234,6 +246,8 @@ private void testHelloWorldReceived() throws IOException, TimeoutException {
 工作队列（任务队列），主要思想是避免立即执行资源密集型任务，而不得不等待它完成。工作队列（又名：任务队列）背后的主要理念是避免立即执行资源密集型任务并等待其完成。相反，我们将任务安排在稍后完成。我们将任务封装为消息，并将其发送到队列。在后台运行的 Worker 进程会弹出任务并最终执行作业。当运行多个 Worker 时，任务将在它们之间共享。  
 
 这一概念在网络应用程序中尤其有用，因为在短时间的 HTTP 请求窗口中不可能处理复杂的任务。安排任务在之后执行。
+
+图：*img/mq7-workQueues.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq7-workQueues.png)
 
@@ -350,11 +364,15 @@ channel.basicAck(deliceryTag, true);
   
   - 只会应答tag为8的消息（之应答当前），5、6、7这三个消息依然不会被确认收到消息应答
 
+图：*img/mq8-ack.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq8-ack.png)
 
 ###### 消息自动重新入队
 
 如果消费者由于某些原因失去连接（其通道已关闭，连接已关闭或TCP连接丢失），导致消息未发送ACK确认，Rabbit MQ将了解到消息未处理，并对其重新排队。如果此时其他消费者可以处理，它将很快将其重新分发给另一个消费者。这样即使某个消费者偶尔死亡，也可以确保消息不会丢失。
+
+图：*img/mq9-ack.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq9-ack.png)
 
@@ -456,6 +474,8 @@ boolean durable = true;
 channel.queueDeclare("queueName", durable, false, false, null);
 ```
 
+图：*img/mq10-Durable.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq10-Durable.png)
 
 *Tips：当一个队列名称在对应的Virtual host已经存在，并且为非持久化时，创建同名的持久化队列会报创建错误。*
@@ -550,6 +570,8 @@ int prefetchCount = 1; // 轮训分发默认为0
 channel.basicQos(prefetchCount);
 ```
 
+图：*img/mq11-FairDispatch.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq11-FairDispatch.png)
 
 > 代码实例
@@ -603,6 +625,8 @@ private void testWorkQueuesFairDispatchReceived01() throws IOException, TimeoutE
 **也可以将这个值当做信道Channel可以存储等待的最大值**。
 
 此时，消息只能看信道中消息存储量，如果未到达预设值，即使消息未被消费，也会被分配消息。
+
+图：*img/mq12-basicQos.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq12-basicQos.png)
 
@@ -727,6 +751,8 @@ private void testWorkQueueConfirmSelectBatchSent() {
 #### 异步发布确认
 
 异步发布确认虽然逻辑上比上述两种都复杂，但是性价比最高。可靠性强、异步执行不阻塞效率高。它是利用回调函数来达到消息可靠性传递的，这个中间件也是通过函数回调来保证是否投递成功。
+
+图：*img/mq13-Confirm.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq13-Confirm.png)
 
@@ -952,6 +978,8 @@ private void testWorkQueueConfirmAsyncSent() {
 
 假设工作队列背后，每个任务都恰好交付给一个消费者（工作进程）。在这一部分中，将消息传递给多个消费者，这种模式称为“发布/订阅（`Publish/Subscribe`）”模式。
 
+图：*img/mq14-Publish/Subscribe.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq14-Publish:Subscribe.png)
 
 *tips:* 在前面没有交换机介入时，一条消息只能被消费一次，因为一个队列只能对应一个消费者
@@ -1008,6 +1036,8 @@ String queueName = channel.queueDeclare().getQueue();
 
 我们已经创建了一个 fanout 交换机和一个队列。现在，我们需要告诉交易所向队列发送消息。交换机和队列之间的这种关系称为绑定。
 
+图：*img/mq15-binding.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq15-binding.png)
 
 > 实例代码
@@ -1023,6 +1053,8 @@ channel.queueBind(queueName, "logs", "");
 ### Fanout
 
 发布日志信息的生产者程序与之前的教程并无太大区别。最重要的变化是，我们现在要将消息发布到我们的日志交换中心，而不是无名交换中心。**我们需要在发送时提供路由键（routingKey），但其值在Fanout（扇出模式、广播模式）时交换机会忽略**。
+
+图：*img/mq16-Fanout.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq16-Fanout.png)
 
@@ -1096,6 +1128,8 @@ Fanout我们使用的是扇出交换器，它没有给我们提供太多的灵�
 
 我们将改用直接（Direct）交换。直接交换背后的路由算法很简单——**消息会进入绑定密钥与消息路由密钥完全匹配的队列**。
 
+图：*img/mq17-direct.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq17-direct.png)
 
 在此设置中，我们可以看到`direct` 交换机 X 绑定了两个队列。第一个队列绑定了`orange`绑定密钥，第二个队列有两个绑定密钥，一个是`black`绑定密钥，另一个是`green`绑定密钥。  
@@ -1105,6 +1139,8 @@ Fanout我们使用的是扇出交换器，它没有给我们提供太多的灵�
 #### 多重绑定
 
 用同一个绑定密钥绑定多个队列是完全合法的。在我们的例子中，我们可以用绑定密钥 black 在 X 和 Q1 之间添加一个绑定。在这种情况下，直接交换将像扇出一样，向所有匹配队列广播报文。路由密钥为 black 的报文将同时发送到 Q1 和 Q2。
+
+图：*img/mq18-MultipleBindings.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq18-MultipleBindings.png)
 
@@ -1215,6 +1251,8 @@ private void testDirectReceived() throws IOException, TimeoutException {
 
 #### Topics匹配实例
 
+图：*img/mq19-topics.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq19-topics.png)
 
 在本例中，我们要发送的信息都是描述动物的。这些信息将使用由三个单词（两个点）组成的路由密钥发送。路由键中的第一个单词描述速度，第二个单词描述颜色，第三个单词描述物种：`<speed>.<colour>.<species>`
@@ -1324,6 +1362,8 @@ private void testTopicsReceived() throws IOException, TimeoutException {
 #### 死信实战
 
 ##### 代码架构图
+
+图：*img/mq20-deadQueue.png*
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq20-deadQueue.png)
 
@@ -1691,6 +1731,8 @@ spring:
 
 创建两个队列QA和QB，两者队列 TTL分贝设置为10S和40S，然后再创建一个交换机X和死信交换机Y，它们的类型都是`direct` ，创建一个死信队列QD，它们绑定关系如下：
 
+图：*img/mq21-TTL.png*
+
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq21-TTL.png)
 
 ##### 配置文件代码
@@ -1733,6 +1775,10 @@ public Queue queueDlQD() {
 > 绑定方法
 
 此处采用了两种绑定形式，一种是直接使用方法体内的队列、交换机进行声明；一种是使用Spring依赖注入进行声明
+
+此处使用到了`@Qualifier(BeanName)`注解，该注解有以下特性：
+
+在Spring Boot中，`@Qualifier`注解是一个用于解决bean的歧义问题的工具。当你有多个相同类型的bean在Spring容器中时，Spring默认的自动装配机制可能无法决定应该注入哪一个bean。这时，`@Qualifier`注解可以帮助你指定注入哪一个具体的bean。
 
 ```java
 /**
@@ -1783,7 +1829,7 @@ public void sendMsg01(String message) {
 
 > 消费者
 
-与生产者不同，**消费者是通过监听来实现消费的**
+与生产者不同，**消费者是通过监听来实现消费的**，监听注解`@RabbitListener(queues = QUEUE_NAME)` 
 
 所在位置（consumer/DeadLetterQueueConsumer.java）
 
@@ -1813,3 +1859,101 @@ public class DeadLetterQueueConsumer {
     }
 }
 ```
+
+#### 延迟队列优化
+
+如上述例子中，第一条消息10s后变成了死信消息然后被消费者消费；第二条为40s。
+
+如果这样使用，会造成**每增加一个新的时间需求就要增加一个新的队列**。这里只有10s和40s，如果需要一个小时后处理，就要增加一个TTL为一小时的队列，如果是预定会议室然后通知的场景，需要增加无数队列才能满足需求。
+
+##### 代码架构图
+
+此处创建队列QC，与QA、QB不同，**QC本身不指定TTL时长，而是交由生产者进行指定**。
+
+图：*img/mq22-TTLMakeSuperior.png*
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq22-TTLMakeSuperior.png)
+
+##### 配置文件代码
+
+进行相应的绑定关系，并且不再设置TTL时长
+
+```java
+/**
+ * 不设置TTL，交由生产者进行设置
+ * @return 无TTL的队列
+ */
+@Bean("queueQC")
+public Queue queueQC() {
+    Map<String, Object> arguments = new HashMap<>(2);
+    arguments.put("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE_Y);
+    arguments.put("x-dead-letter-routing-key", ROUTING_KEY_YD);
+    return QueueBuilder.durable(QUEUE_C).withArguments(arguments)
+            .build();
+}
+/**
+ * 队列QC与交换机X绑定
+ * @param queue 队列QC
+ * @param exchange 交换机X
+ * @return 返回绑定关系
+ */
+@Bean
+public Binding queueQCBindingExchangeX(@Qualifier("queueQC")Queue queue,
+                                       @Qualifier("xExchange") DirectExchange exchange) {
+    return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_XC);
+}
+```
+
+*tips: `@Qualifier` 已经指定了Bean名字，因此方法内参数命名可以随意命名*
+
+##### 生产者与消费者
+
+在生产者中，使用`convertAndSend()` 中的属性进行TTL设置，`message.getMessageProperties().setExpiration(String TTL)`为设置超时时间
+
+```java
+/**
+ * 由生产者指定TTL的方法
+ * @param sendMsgAndTimeDTO 存储消息及TTL时间
+ */
+@PostMapping("sendMsg02")
+public void sendExpirationMsg02(SendMsgAndTimeDTO sendMsgAndTimeDTO) {
+    log.info(JSONObject.toJSONString(sendMsgAndTimeDTO));
+    log.info("[X]The message is send, message is [{}], and TTL is [{}]",
+        sendMsgAndTimeDTO.getMessage(),
+        sendMsgAndTimeDTO.getTtlTime());
+    rabbitTemplate.convertAndSend(EXCHANGE_X, ROUTING_KEY_XC,
+            sendMsgAndTimeDTO.getMessage().getBytes(StandardCharsets.UTF_8),
+            message -> {
+                // 设置超时时间
+                message.getMessageProperties().setExpiration(String.valueOf(sendMsgAndTimeDTO.getTtlTime()));
+                return message;
+            });
+}
+```
+
+消费者由于与上一个例子中同为监听`DEAD_LETTER_QUEUE_D` 队列的方法，因此不做修改，直接沿用上一例中的消费者即可。
+
+##### 基于死信存在的问题
+
+我们上述的延迟队列是基于死信进行处理的，这存在一个问题，就是先进先出，这会导致如下问题：
+
+- 向队列发送一条20S的消息1，随后再向队列发送一条2S的消息2
+
+- 按照预想结果，消费者应当先消费消息2，再消费消息1
+
+- 但是查看控制台发现，消费者会等待消息1达到20s消费后，才会消费消息2
+
+- 这是队列先进先出导致的
+
+> 测试日志
+
+```shell
+11:15:27.446 : {"message":"测试信息1","ttlTime":20000}
+11:15:27.446 : [X]The message is send, message is [测试信息1], and TTL is [20000]
+11:15:32.739 : {"message":"测试信息2","ttlTime":2000}
+11:15:32.739 : [X]The message is send, message is [测试信息2], and TTL is [2000]
+11:15:47.472 : [X]Received message success, the message is [测试信息1], and routing Key is [yd]
+11:15:47.473 : [X]Received message success, the message is [测试信息2], and routing Key is [yd]
+```
+
+在**消息属性上设置TTL的方式**（即生产者设置），消息可能不会按时“死亡”，因为**Rabbit MQ只会检查第一个消息是否过期，如果过期则丢到死信队列。如果第一个消息延时时长很长，而第二个消息的延时时长很短，第二个消息并不会得到优先消费**。

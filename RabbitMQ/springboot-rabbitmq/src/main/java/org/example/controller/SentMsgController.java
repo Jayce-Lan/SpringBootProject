@@ -53,4 +53,23 @@ public class SentMsgController {
                     return message;
                 });
     }
+
+    /**
+     * 发送延迟消息
+     * @param sendMsgAndTimeDTO
+     */
+    @PostMapping("sendMsg03")
+    public void sendDelayedMsg(SendMsgAndTimeDTO sendMsgAndTimeDTO) {
+        log.info(JSONObject.toJSONString(sendMsgAndTimeDTO));
+        log.info("[X]The message is send, message is [{}], and delayed time is [{}]",
+                sendMsgAndTimeDTO.getMessage(),
+                sendMsgAndTimeDTO.getTtlTime());
+        rabbitTemplate.convertAndSend(DELAYED_EXCHANGE_NAME, DELAYED_ROUTING_KEY,
+                sendMsgAndTimeDTO.getMessage().getBytes(StandardCharsets.UTF_8),
+                message -> {
+                    // 设置延迟时间
+                    message.getMessageProperties().setDelay(sendMsgAndTimeDTO.getTtlTime());
+                    return message;
+                });
+    }
 }

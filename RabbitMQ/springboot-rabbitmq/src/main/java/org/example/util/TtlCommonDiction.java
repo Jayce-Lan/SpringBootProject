@@ -46,4 +46,22 @@ public class TtlCommonDiction {
      * 绑定QD的Routing Key
      */
     public static final String ROUTING_KEY_YD = "yd";
+
+    /**
+     * 用于交换机延迟的队列名
+     */
+    public static final String DELAYED_QUEUE_NAME = "delayed.queue";
+    /**
+     * 用于交换机延迟的交换机名
+     */
+    public static final String DELAYED_EXCHANGE_NAME = "delayed.exchange";
+    /**
+     * 用于交换机延迟的routing key
+     */
+    public static final String DELAYED_ROUTING_KEY = "delayed.routing_key";
+    /**
+     * 安装了 rabbitmq_delayed_message_exchange 插件后
+     * 作为交换机延迟的交换机类型，由插件新增的一个类型
+     */
+    public static final String X_DELAYED_MESSAGE_EXCHANGE_TYPE = "x-delayed-message";
 }

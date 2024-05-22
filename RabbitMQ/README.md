@@ -1579,6 +1579,8 @@ channel.basicConsume(RabbitMQConfigDiction.NORMAL_QUEUE, false,
 
 其实是上一节死信队列中`TTL过期` 的一个延伸；**相当于C1被关闭，经过TTL的超时时间后由normal交换机转到dead交换机，随后直接被C2消费**。
 
+当然，使用插件后可以不依赖死信队列模式进行处理。
+
 #### 延迟队列概念
 
 延迟队列内部是有序的，最重要的特性就体现在它的延迟属性上。延迟队列中的元素是希望在指定时间到了以后或之前取出和处理，简单来说，延迟队列就是用来存放需要在指定时间被处理的元素的队列。
@@ -1906,6 +1908,8 @@ public Binding queueQCBindingExchangeX(@Qualifier("queueQC")Queue queue,
 
 *tips: `@Qualifier` 已经指定了Bean名字，因此方法内参数命名可以随意命名*
 
+
+
 ##### 生产者与消费者
 
 在生产者中，使用`convertAndSend()` 中的属性进行TTL设置，`message.getMessageProperties().setExpiration(String TTL)`为设置超时时间
@@ -1957,3 +1961,146 @@ public void sendExpirationMsg02(SendMsgAndTimeDTO sendMsgAndTimeDTO) {
 ```
 
 在**消息属性上设置TTL的方式**（即生产者设置），消息可能不会按时“死亡”，因为**Rabbit MQ只会检查第一个消息是否过期，如果过期则丢到死信队列。如果第一个消息延时时长很长，而第二个消息的延时时长很短，第二个消息并不会得到优先消费**。
+
+#### Rabbit MQ插件实现队列优化
+
+按照上面所讲到的，队列为先进先出的形式，如果需要解决上述问题则需要使用Rabbit MQ的`rabbitmq_delayed_message_exchange`插件来进行处理。
+
+##### 插件安装
+
+- 需要下载插件，需要到Rabbit MQ官网中的 `https://www.rabbitmq.com/community-plugins` 寻找到对应插件，并选择`Releases` 模块下载 `.ez` 为文件后缀的文件
+
+- 下载插件后放入Rabbit MQ安装目录中的 `plugins` 目录
+
+- 执行 `rabbitmq-plugins enable rabbitmq_delayed_message_exchange` 启用插件
+
+插件安装成功后可以使用 `rabbitmq-plugins list` 查看插件安装状态；也可以在管理界面的交换机新增模块中查看“Type”属性是否新增了一个 `x-delayed-messahe` 类型
+
+##### 插件处理原理
+
+原本上述例子中，我们是基于死信队列中的队列或者生产者进行TTL设定的，优缺点如下
+
+| TTL设置方式 | 优点                      | 缺点                                                      |
+| ------- | ----------------------- | ------------------------------------------------------- |
+| 在队列中设置  | 不会存在先进先出原则，而是正常依照设定时间消费 | 延时时间固定，每次设定一个不同的延时时间就要重新创建一个队列                          |
+| 在生产者中设置 | 不需要设置多个定时队列，应用灵活        | 存在先进先出原则，一旦前一条消息的延时时间远大于后一条消息，后一条则需要等待前一条时间才能被消费；存在消费延迟 |
+
+当启用 `rabbitmq_delayed_message_exchange` 插件后，**可以在交换机中进行TTL设置**，摆脱了生产者设置中先进先出原则带来的消费延迟。
+
+##### 运行流程
+
+`P` ==> `delayed.exchange;type: direct` =`delay.routingkey`=> `delayed.queue` ==> `C`
+
+##### 配置文件代码
+
+所在位置（config/DelayedQueueConfig.java）
+
+```java
+/**
+ * 配置队列
+ * @return
+ */
+@Bean
+public Queue delayedQueue() {
+    return new Queue(DELAYED_QUEUE_NAME);
+}
+/**
+ * 基于插件配置自定义交换机
+ * @return CustomExchange 返回一个自定义类型的交换机
+ */
+@Bean
+public CustomExchange delayedExchange() {
+    Map<String, Object> arguments = new HashMap<>();
+    // 延迟类型，直接类型，因为RoutingKey是个固定值
+    arguments.put("x-delayed-type", "direct");
+    /**
+     * 自定义交换机
+     * 1.交换机名称
+     * 2.交换机类型
+     * 3.是否持久化
+     * 4.是否自动删除
+     * 5.其他参数
+     */
+    return new CustomExchange(DELAYED_EXCHANGE_NAME,
+            X_DELAYED_MESSAGE_EXCHANGE_TYPE, // x-delayed-message
+            true,
+            false,
+            arguments);arguments.put("x-delayed-type", "direct");
+}
+/**
+ * 队列与交换机绑定
+ * @return
+ */
+@Bean
+public Binding delayedQueueBindingDelayedExchange(Queue delayedQueue, Exchange delayedExchange) {
+    return BindingBuilder.bind(delayedQueue)
+            .to(delayedExchange)
+            .with(DELAYED_ROUTING_KEY)
+            .noargs();
+}
+```
+
+##### 生产者与消费者
+
+在生产者消息中指定延迟时间，**时间传递到交换机中，交换机就会进行延迟时间设定**，这样**消息就不会堆积在队列中，而由交换机进行调配**。
+
+> 生产者
+
+```java
+/**
+ * 发送延迟消息
+ * @param sendMsgAndTimeDTO
+ */
+@PostMapping("sendMsg03")
+public void sendDelayedMsg(SendMsgAndTimeDTO sendMsgAndTimeDTO) {
+    log.info(JSONObject.toJSONString(sendMsgAndTimeDTO));
+    log.info("[X]The message is send, message is [{}], and delayed time is [{}]",
+            sendMsgAndTimeDTO.getMessage(),
+            sendMsgAndTimeDTO.getTtlTime());
+    rabbitTemplate.convertAndSend(DELAYED_EXCHANGE_NAME, DELAYED_ROUTING_KEY,
+            sendMsgAndTimeDTO.getMessage().getBytes(StandardCharsets.UTF_8),
+            message -> {
+                // 设置延迟时间
+                message.getMessageProperties().setDelay(sendMsgAndTimeDTO.getTtlTime());
+                return message;
+            });
+}
+```
+
+> 消费者
+
+所在位置（consumer/DelayedQueueConsumer.java）
+
+```java
+@Component
+@Slf4j
+public class DelayedQueueConsumer {
+    @RabbitListener(queues = TtlCommonDiction.DELAYED_QUEUE_NAME)
+    public void receivedDelayedMsg(Message message, Channel channel) {
+        String msg = new String(message.getBody(), StandardCharsets.UTF_8);
+        log.info("[X] The message is received, body is [{}]", msg);
+    }
+}
+```
+
+> 运行结果
+
+```shell
+2024-05-22 17:12:33.849: {"message":"测试信息1","ttlTime":20000}
+2024-05-22 17:12:33.849: [X]The message is send, message is [测试信息1], and delayed time is [20000]
+2024-05-22 17:12:38.702: {"message":"测试信息2","ttlTime":2000}
+2024-05-22 17:12:38.702: [X]The message is send, message is [测试信息2], and delayed time is [2000]
+2024-05-22 17:12:40.716: [X] The message is received, body is [测试信息2]
+2024-05-22 17:12:45.461: {"message":"测试信息3","ttlTime":200}
+2024-05-22 17:12:45.461: [X]The message is send, message is [测试信息3], and delayed time is [200]
+2024-05-22 17:12:45.665: [X] The message is received, body is [测试信息3]
+2024-05-22 17:12:53.856: [X] The message is received, body is [测试信息1]
+```
+
+#### 总结
+
+延迟队列在需要延迟处理的场景下非常有用，使用RabbitMQ来实现延迟队列可以很好的利用RabbitMQ的特性，如：消息可靠发送、消息可靠投递、死信队列来保障消息至少被消费一次以及未被正确消费的消息不会被丢弃。另外，通过RabbitMQ集群的特性，可以很好的解决单点故障问题，不会因为单个节点挂掉导致延时队列不可用或者消息丢失。
+
+当然，延时队列还有其他很多选择，例如利用Java的DelayQueue、Redis的zest、Quartz或者Kafka的时间轮，这些方式各有特点，看需要到的使用场景。
+
+---

@@ -1737,7 +1737,7 @@ spring:
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq21-TTL.png)
 
-##### 配置文件代码
+##### 配置绑定关系代码
 
 在之前未整合Spring AMQP时，我们的队列创建、声明，交换机创建、声明均放在生产者和消费者中，现在我们可以**单独创建一个配置类来存储队列、交换机的声明及绑定信息**。
 
@@ -1876,7 +1876,7 @@ public class DeadLetterQueueConsumer {
 
 ![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq22-TTLMakeSuperior.png)
 
-##### 配置文件代码
+##### 配置绑定关系代码
 
 进行相应的绑定关系，并且不再设置TTL时长
 
@@ -1907,8 +1907,6 @@ public Binding queueQCBindingExchangeX(@Qualifier("queueQC")Queue queue,
 ```
 
 *tips: `@Qualifier` 已经指定了Bean名字，因此方法内参数命名可以随意命名*
-
-
 
 ##### 生产者与消费者
 
@@ -1991,7 +1989,7 @@ public void sendExpirationMsg02(SendMsgAndTimeDTO sendMsgAndTimeDTO) {
 
 `P` ==> `delayed.exchange;type: direct` =`delay.routingkey`=> `delayed.queue` ==> `C`
 
-##### 配置文件代码
+##### 配置绑定关系代码
 
 所在位置（config/DelayedQueueConfig.java）
 
@@ -2086,15 +2084,15 @@ public class DelayedQueueConsumer {
 > 运行结果
 
 ```shell
-2024-05-22 17:12:33.849: {"message":"测试信息1","ttlTime":20000}
-2024-05-22 17:12:33.849: [X]The message is send, message is [测试信息1], and delayed time is [20000]
-2024-05-22 17:12:38.702: {"message":"测试信息2","ttlTime":2000}
-2024-05-22 17:12:38.702: [X]The message is send, message is [测试信息2], and delayed time is [2000]
-2024-05-22 17:12:40.716: [X] The message is received, body is [测试信息2]
-2024-05-22 17:12:45.461: {"message":"测试信息3","ttlTime":200}
-2024-05-22 17:12:45.461: [X]The message is send, message is [测试信息3], and delayed time is [200]
-2024-05-22 17:12:45.665: [X] The message is received, body is [测试信息3]
-2024-05-22 17:12:53.856: [X] The message is received, body is [测试信息1]
+17:12:33.849: {"message":"测试信息1","ttlTime":20000}
+17:12:33.849: [X]The message is send, message is [测试信息1], and delayed time is [20000]
+17:12:38.702: {"message":"测试信息2","ttlTime":2000}
+17:12:38.702: [X]The message is send, message is [测试信息2], and delayed time is [2000]
+17:12:40.716: [X] The message is received, body is [测试信息2]
+17:12:45.461: {"message":"测试信息3","ttlTime":200}
+17:12:45.461: [X]The message is send, message is [测试信息3], and delayed time is [200]
+17:12:45.665: [X] The message is received, body is [测试信息3]
+17:12:53.856: [X] The message is received, body is [测试信息1]
 ```
 
 #### 总结
@@ -2104,3 +2102,207 @@ public class DelayedQueueConsumer {
 当然，延时队列还有其他很多选择，例如利用Java的DelayQueue、Redis的zest、Quartz或者Kafka的时间轮，这些方式各有特点，看需要到的使用场景。
 
 ---
+
+### 发布确认高级
+
+在生产环境中由于一些不明原因导致RabbitMQ重启，在RabbitMQ重启期间生产者消息投递失败，导致消息丢失，需要手动处理和恢复。如何才能进行RabbitMQ的消息可靠投递？特别在比较极端的情况下，RabbitMQ集群不可用的时候，无法投递的消息应该如何处理？
+
+#### 发布确认SpringBoot版本
+
+##### 确认机制方案
+
+图：*img/mq23-confirm.png*
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq23-confirm.png)
+
+##### 代码架构
+
+`P` ==> `confirm.exchange; type: direct`  =key1=> `confirm.queue` ==> `confirm consumer`
+
+##### 配置文件
+
+首先，配置文件 `application.yml` 中加入以下配置
+
+```yml
+spring:
+  rabbitmq:
+    publisher-confirm-type: CORRELATED
+```
+
+> 参数解析
+
+- `NONE` 禁用发布确认模式，默认值
+
+- `CORRELATED` 发布消息成功到交换机后会触发回调方法
+
+- `SIMPLE`  类似于发布确认的单条确认，经测有两种效果
+  
+  - 第一种效果：和`CORRELATED` 一样会触发回调方法
+  
+  - 第二种效果：发布消息成功后使用`rabbitTemplate.waitForConfirms(long timeout)` 或 `rabbitTemplate.waitForConfirmsOrDie(long timeout)` 方法等待broker节点返回发送结果，根据返回结果来判断下一步的逻辑。值得注意的是，`rabbitTemplate.waitForConfirmsOrDie(long timeout)` 方法如果返回 `false` 则会关闭 `Channel` ，接下来无法发送消息到broker
+
+##### 配置绑定关系代码
+
+所在位置（config/ConfirmConfig.java）
+
+```java
+@Bean
+public DirectExchange confirmExchange() {
+    return new DirectExchange(CONFIRM_EXCHANGE_NAME);
+}
+@Bean
+public Queue confirmQueue() {
+    return new Queue(CONFIRM_QUEUE_NAME);
+}
+@Bean
+public Binding confirmQueueBindingConfirmExchange(Queue confirmQueue,
+                                                  DirectExchange confirmExchange) {
+    return BindingBuilder.bind(confirmQueue)
+            .to(confirmExchange)
+            .with(CONFIRM_ROUTING_KEY);
+}
+```
+
+##### 回调接口
+
+发布确认是通过监听来实现的，监听需要实现`RabbitTemplate.ConfirmCallback` 接口
+
+> 接口源码
+
+- `var1` 存储发送内容
+
+- `var2`  存储的boolean值参数在接收成功时会返回`true` ，接收失败返回`false` 
+
+- `var3` 存储失败原因
+
+```java
+@FunctionalInterface
+public interface ConfirmCallback {
+    void confirm(@Nullable CorrelationData var1, boolean var2, @Nullable String var3);
+}
+```
+
+> 接口实现
+
+定义一个`MyConfirmCallback` 配置类，用于实现 `RabbitTemplate.ConfirmCallback` 接口
+
+值得注意的是，在实现接口后，其实RabbitTemplate并没有识别到自己的接口被实现了；因此需要使用`init` 自定义一个注入，将本身注入到RabbitTemplate中，并且开启`@PostConstruct` ，防止在RabbitTemplate之前这个方法被加载
+
+```java
+package org.example.config;
+
+import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
+
+@Configuration
+@Slf4j
+public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback {
+    @Resource
+    private RabbitTemplate rabbitTemplate;
+
+    /**
+     * 注入
+     * 将接口的实现注入到RabbitTemplate中
+     * @ PostConstruct - 加载后构造
+     */
+    @PostConstruct
+    public void init() {
+        rabbitTemplate.setConfirmCallback(this);
+    }
+    /**
+     * 交换机确认回调方法
+     * @param correlationData 消息内容，存储消息id及相关信息
+     * @param ack 接收确认成功true；失败false
+     * @param cause 存储失败原因，成功为null；失败为false
+     */
+    @Override
+    public void confirm(CorrelationData correlationData, boolean ack, String cause) {
+        String messageId = "";
+        if (correlationData != null) {
+            messageId = StringUtils.hasText(correlationData.getId()) ? correlationData.getId(): "";
+        }
+        if (ack) {
+            log.info("[Ex]Exchange is received success, the message id is [{}], and correlationData is [{}]",
+                    messageId, JSONObject.toJSONString(correlationData));
+        } else {
+            log.error("[Ex Err]Exchange is received loss, the message id is [{}], and cause is [{}] , and correlationData is [{}]",
+                    messageId, cause, JSONObject.toJSONString(correlationData));
+        }
+    }
+}
+```
+
+##### 生产者与消费者
+
+> 生产者
+
+所在目录（controller/ProducerController.java）
+
+```java
+@PostMapping("sendMsg02")
+public void testSendMsgConfirm(String message) {
+    log.info("[S]Send message success! The message is : [{}]", message);
+    // 交换机发布确认的所需参数；用于传递信息给到RabbitTemplate.ConfirmCallback
+    CorrelationData correlationData = new CorrelationData(UUID.randomUUID().toString());
+    rabbitTemplate.convertAndSend(CONFIRM_EXCHANGE_NAME,
+            CONFIRM_ROUTING_KEY,
+            message.getBytes(StandardCharsets.UTF_8),
+            correlationData);
+}
+```
+
+> 消费者
+
+所在目录（consumer/ConfirmConsumer.java）
+
+```java
+@RabbitListener(queues = CONFIRM_QUEUE_NAME)
+public void receivedTestMsg(Message message) {
+    log.info("[R]Received success! The message is [{}], and routing key is [{}]", 
+            new String(message.getBody(), StandardCharsets.UTF_8),
+            message.getMessageProperties().getReceivedRoutingKey());
+}
+```
+
+> 调用结果
+
+```shell
+[S]Send message success! The message is : [测试信息3]
+[R]Received success! The message is [测试信息3], and routing key is [confirm.key]
+[Ex]Exchange is received success, the message id is [a6c51dc7-a7bb-4357-8dad-26a6343741f3], 
+and correlationData is [{"future":{"cancelled":false,"done":true},"id":"a6c51dc7-a7bb-4357-8dad-26a6343741f3"}]
+```
+
+##### 交换机确认
+
+经过测试，我们如果**将上述生产者部分的交换机名称换位错误名称（即找不到的交换机，模拟宕机），此时我们实现的回调接口会告知我们消息接收失败**
+
+> 报错明细
+
+```shell
+* 执行结果：
+* Rabbit MQ报NOT_FOUND异常
+* Shutdown Signal: channel error; protocol method: #method<channel.close>(reply-code=404,
+* reply-text=NOT_FOUND - no exchange 'confirm.exchange123' in vhost '/hello', class-id=60, method-id=40)
+*
+* 实现的接口监听异常：
+* [Ex Err]Exchange is received loss, the message id is [150f092d-c4a5-40fa-a4e0-e3432c36d883],
+* and cause is [channel error; protocol method: #method<channel.close>(reply-code=404,
+* reply-text=NOT_FOUND - no exchange 'confirm.exchange123' in vhost '/hello', class-id=60, method-id=40)] ,
+* and correlationData is [{"future":{"cancelled":false,"done":true},"id":"150f092d-c4a5-40fa-a4e0-e3432c36d883"}]
+```
+
+由此可见，我们实现接口并在生产者发送消息时加入`CorrelationData` 参数是有效的。但是用同样的方法测试，将交换机还原（即模拟交换机正常）；并且将Routing Key修改为错误的值（即模拟队列宕机或异常），此时发现消息正常发送，并且被确认接收了，只是消费者未消费而已。由此可见，**上述方式只做了交换机确认，未做队列确认**。
+
+#### 回退消息
+
+##### Mandatory 参数
+
+**在仅开启了生产者确认机制的情况下，交换机接收到消息后会直接给消息生产者发送确认信息，如果发现该消息不可路由，那么消息会直接被丢弃，此时生产者是不知道消息被丢弃这个事情的**。通过设置 `mandatory` 参数可以在当消息传递过程中不可达目的地时将消息返回给生产者。

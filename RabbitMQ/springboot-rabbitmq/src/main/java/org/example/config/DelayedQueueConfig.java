@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.example.util.TtlCommonDiction.*;
+import static org.example.util.CommonDiction.*;
 
 /**
  * 用于存储交换机设置TTL的绑定关系

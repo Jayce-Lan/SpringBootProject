@@ -1,6 +1,5 @@
 package org.example.consumer;
 
-import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -8,18 +7,14 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.example.util.CommonDiction.DEAD_LETTER_QUEUE_D;
+import static org.example.util.CommonDiction.CONFIRM_QUEUE_NAME;
 
-/**
- * 队列TTL - 消费者
- *
- */
 @Component
 @Slf4j
-public class DeadLetterQueueConsumer {
-    @RabbitListener(queues = DEAD_LETTER_QUEUE_D)
-    public void receivedQDMsg(Message message, Channel channel) {
-        log.info("[X]Received message success, the message is [{}], and routing Key is [{}]",
+public class ConfirmConsumer {
+    @RabbitListener(queues = CONFIRM_QUEUE_NAME)
+    public void receivedTestMsg(Message message) {
+        log.info("[R]Received success! The message is [{}], and routing key is [{}]", 
                 new String(message.getBody(), StandardCharsets.UTF_8),
                 message.getMessageProperties().getReceivedRoutingKey());
     }

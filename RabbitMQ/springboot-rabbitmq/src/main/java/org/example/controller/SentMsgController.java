@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import java.nio.charset.StandardCharsets;
 
-import static org.example.util.TtlCommonDiction.*;
+import static org.example.util.CommonDiction.*;
 
 /**
  * 生产者
@@ -56,7 +56,7 @@ public class SentMsgController {
 
     /**
      * 发送延迟消息
-     * @param sendMsgAndTimeDTO
+     * @param sendMsgAndTimeDTO 存储消息及延迟时间
      */
     @PostMapping("sendMsg03")
     public void sendDelayedMsg(SendMsgAndTimeDTO sendMsgAndTimeDTO) {

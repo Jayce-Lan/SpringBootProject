@@ -9,3 +9,4 @@ spring:
     username: guest
     password: guest
     virtual-host: /hello
+    publisher-confirm-type: CORRELATED

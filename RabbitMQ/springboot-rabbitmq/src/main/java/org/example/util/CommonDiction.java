@@ -1,6 +1,6 @@
 package org.example.util;
 
-public class TtlCommonDiction {
+public class CommonDiction {
     /**
      * 普通交换机 exchange_X
      * 用于将消息按照RoutingKey分发到不同TTL的交换机中
@@ -64,4 +64,18 @@ public class TtlCommonDiction {
      * 作为交换机延迟的交换机类型，由插件新增的一个类型
      */
     public static final String X_DELAYED_MESSAGE_EXCHANGE_TYPE = "x-delayed-message";
+
+    /**
+     * 用于SpringBoot发布确认的交换机
+     */
+    public static final String CONFIRM_EXCHANGE_NAME = "confirm.exchange";
+    /**
+     * 用于SpringBoot发布确认的队列
+     */
+    public static final String CONFIRM_QUEUE_NAME = "confirm.queue";
+    /**
+     * 用于SpringBoot发布确认的routing key
+     */
+    public static final String CONFIRM_ROUTING_KEY = "confirm.key";
+
 }

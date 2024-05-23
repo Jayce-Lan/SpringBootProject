@@ -77,6 +77,7 @@ public class ProducerController {
     /**
      * 模拟发布确认失效的情况
      * 给到错误的队列名称，模拟队列宕机、异常
+     * 一切正常，只是未被消费
      * @param message
      */
     @PostMapping("sendMsg04")

@@ -2366,7 +2366,6 @@ import javax.annotation.Resource;
                 springReturnedMessageCorrelation);
     }
 }
-
 ```
 
 与`ConfirmCallback` 接口不同，`ReturnsCallback` 接口虽然也是在监听消息，但是**在队列接收到消息后，接口不会有任何动作，只有在队列接收失败后才会触发该接口的实现类**。
@@ -2410,6 +2409,71 @@ import javax.annotation.Resource;
 - 当消息正常被传递到队列时，队列确认不会被触发
 
 - 当交换机正常、交换机错误（未被创建、宕机、routingKey错误等情况），队列确认方法实现会被触发，ReturnedMessage返回如上述的参数
+
+实际上，两个确认的配置类（即`ConfirmCallback` 和 `ReturnedCallback` 的实现类）都可以写在同一个类中，在注入时同事将它们set进`RabbitTemplate` 即可。
+
+所在位置（config/msgconfirm/MyConfirmCallback.java）
+
+```java
+package org.example.config.msgconfirm;
+
+import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.ReturnedMessage;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
+
+@Configuration
+@Slf4j
+public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, RabbitTemplate.ReturnsCallback {
+    @Resource
+    private RabbitTemplate rabbitTemplate;
+
+    @PostConstruct
+    public void init() {
+        rabbitTemplate.setConfirmCallback(this);
+        rabbitTemplate.setReturnsCallback(this);
+    }
+
+    @Override
+    public void confirm(CorrelationData correlationData, boolean ack, String cause) {
+        String messageId = "";
+        if (correlationData != null) {
+            messageId = StringUtils.hasText(correlationData.getId()) ? correlationData.getId(): "";
+        }
+        if (ack) {
+            log.info("[Ex]Exchange is received success, the message id is [{}], and correlationData is [{}]",
+                    messageId, JSONObject.toJSONString(correlationData));
+        } else {
+            log.error("[Ex Err]Exchange is received loss, the message id is [{}], and cause is [{}] , and correlationData is [{}]",
+                    messageId, cause, JSONObject.toJSONString(correlationData));
+        }
+    }
+
+    @Override
+    public void returnedMessage(ReturnedMessage returnedMessage) {
+        log.error("return message : {}", JSONObject.toJSONString(returnedMessage));
+        // 对应的correlationData存储的消息id，可以在此处获取，
+        // 可以理解为correlationData就是headers，只是以map进行存储了
+        // 其中，消息的id被存储在了"spring_returned_message_correlation"当中
+        String springReturnedMessageCorrelation = (String) returnedMessage.getMessage()
+                .getMessageProperties()
+                .getHeaders()
+                .get("spring_returned_message_correlation");
+        log.error("[Queue Err] Queue return loss! The message exchange is :[{}], and routing key is [{}], " +
+                        "and the message correlationData id is [{}], please check the binding!",
+                returnedMessage.getExchange(),
+                returnedMessage.getRoutingKey(),
+                springReturnedMessageCorrelation);
+    }
+}
+
+```
 
 ---
 

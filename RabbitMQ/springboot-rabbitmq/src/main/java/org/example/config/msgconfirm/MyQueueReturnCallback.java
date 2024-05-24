@@ -13,18 +13,20 @@ import javax.annotation.Resource;
  * 用于队列确认的工具类
  * 重写了队列确认的方法 ConfirmCallback
  */
-@Configuration
+//@Configuration
 @Slf4j
-    public class MyQueueReturnCallback implements RabbitTemplate.ReturnsCallback {
-    @Resource
-    private RabbitTemplate rabbitTemplate;
+    public class MyQueueReturnCallback
+//        implements RabbitTemplate.ReturnsCallback
+{
+//    @Resource
+//    private RabbitTemplate rabbitTemplate;
 
-    @PostConstruct
-    public void init() {
-        rabbitTemplate.setReturnsCallback(this);
-    }
+//    @PostConstruct
+//    public void init() {
+//        rabbitTemplate.setReturnsCallback(this);
+//    }
 
-    @Override
+//    @Override
     public void returnedMessage(ReturnedMessage returnedMessage) {
         log.error("return message : {}", JSONObject.toJSONString(returnedMessage));
         // 对应的correlationData存储的消息id，可以在此处获取，

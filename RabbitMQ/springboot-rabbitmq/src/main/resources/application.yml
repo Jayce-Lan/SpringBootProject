@@ -2,6 +2,8 @@ server:
   port: 8999
 
 # mq
+# publisher-confirm-type - 消息送达交换机确认
+# publisher-returns - 消息送达队列确认
 spring:
   rabbitmq:
     host: 127.0.0.1
@@ -10,3 +12,4 @@ spring:
     password: guest
     virtual-host: /hello
     publisher-confirm-type: CORRELATED
+    publisher-returns: true

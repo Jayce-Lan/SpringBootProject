@@ -1,4 +1,4 @@
-package org.example.config;
+package org.example.config.msgconfirm;
 
 import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
@@ -10,9 +10,13 @@ import org.springframework.util.StringUtils;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
+/**
+ * 用于交换机确认的工具类
+ * 重写了交换机确认的方法 ConfirmCallback
+ */
 @Configuration
 @Slf4j
-public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback {
+public class MyExchangeConfirmCallback implements RabbitTemplate.ConfirmCallback {
     @Resource
     private RabbitTemplate rabbitTemplate;
 

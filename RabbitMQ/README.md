@@ -2186,10 +2186,12 @@ public interface ConfirmCallback {
 
 定义一个`MyConfirmCallback` 配置类，用于实现 `RabbitTemplate.ConfirmCallback` 接口
 
-值得注意的是，在实现接口后，其实RabbitTemplate并没有识别到自己的接口被实现了；因此需要使用`init` 自定义一个注入，将本身注入到RabbitTemplate中，并且开启`@PostConstruct` ，防止在RabbitTemplate之前这个方法被加载
+值得注意的是，在实现接口后，其实RabbitTemplate并没有识别到自己的接口被实现了；因此需要使用`init` 自定义一个注入，将本身注入到RabbitTemplate中，并且开启`@PostConstruct` ，防止在RabbitTemplate之前这个方法被加载。**如果不进行注入，方法则无效**。
+
+所在位置（config/msgconfirm/MyExchangeConfirmCallback.java）
 
 ```java
-package org.example.config;
+package org.example.config.msgconfirm;
 
 import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
@@ -2203,7 +2205,7 @@ import javax.annotation.Resource;
 
 @Configuration
 @Slf4j
-public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback {
+public class MyExchangeConfirmCallback implements RabbitTemplate.ConfirmCallback {
     @Resource
     private RabbitTemplate rabbitTemplate;
 
@@ -2300,6 +2302,116 @@ and correlationData is [{"future":{"cancelled":false,"done":true},"id":"a6c51dc7
 ```
 
 由此可见，我们实现接口并在生产者发送消息时加入`CorrelationData` 参数是有效的。但是用同样的方法测试，将交换机还原（即模拟交换机正常）；并且将Routing Key修改为错误的值（即模拟队列宕机或异常），此时发现消息正常发送，并且被确认接收了，只是消费者未消费而已。由此可见，**上述方式只做了交换机确认，未做队列确认**。
+
+##### 队列确认
+
+> 配置文件
+
+队列确认，需要在配置文件中加入如下配置
+
+```yml
+# publisher-returns - 消息送达队列确认
+spring:
+  rabbitmq:
+    publisher-returns: true
+```
+
+> 实现ReturnsCallback
+
+Queue确认是通过实现`RabbitTemplate.ReturnsCallback` 接口实现的，与前面的交换机确认一样，也需要在实现后将方法注入到RabbitTemplate中
+
+所在位置（config/msgconfirm/MyQueueReturnCallback.java）
+
+```java
+package org.example.config.msgconfirm;
+
+import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.ReturnedMessage;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.annotation.Configuration;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
+
+/**
+ * 用于队列确认的工具类
+ * 重写了队列确认的方法 ConfirmCallback
+ */
+@Configuration
+@Slf4j
+    public class MyQueueReturnCallback implements RabbitTemplate.ReturnsCallback {
+    @Resource
+    private RabbitTemplate rabbitTemplate;
+
+    @PostConstruct
+    public void init() {
+        rabbitTemplate.setReturnsCallback(this);
+    }
+
+    @Override
+    public void returnedMessage(ReturnedMessage returnedMessage) {
+        log.error("return message : {}", JSONObject.toJSONString(returnedMessage));
+        // 对应的correlationData存储的消息id，可以在此处获取，
+        // 可以理解为correlationData就是headers，只是以map进行存储了
+        // 其中，消息的id被存储在了"spring_returned_message_correlation"当中
+        String springReturnedMessageCorrelation = (String) returnedMessage.getMessage()
+                .getMessageProperties()
+                .getHeaders()
+                .get("spring_returned_message_correlation");
+        log.error("[Queue Err] Queue return loss! The message exchange is :[{}], and routing key is [{}], " +
+                        "and the message correlationData id is [{}], please check the binding!",
+                returnedMessage.getExchange(),
+                returnedMessage.getRoutingKey(),
+                springReturnedMessageCorrelation);
+    }
+}
+
+```
+
+与`ConfirmCallback` 接口不同，`ReturnsCallback` 接口虽然也是在监听消息，但是**在队列接收到消息后，接口不会有任何动作，只有在队列接收失败后才会触发该接口的实现类**。
+
+该接口只有一个`ReturnedMessage` 参数，一旦队列接收消息失败（也就是无队列接收到该消息），接口被触发，随即就会打印该参数。
+
+可以看到`ReturnedMessage`存储了包括交换机、RoutingKey等信息，如果在发送消息时，生产者携带了`correlationData` 的id，那么将会被以Map的形式存储在`hends`的`spring_returned_message_correlation` 当中，也就是上面例子中的`returnedMessage.getMessage().getMessageProperties().getHeaders().get("spring_returned_message_correlation");` 获取对应的id
+
+> ReturnedMessage信息
+
+```json
+{
+  "exchange": "confirm.exchange",
+  "message": {
+    "body": "5rWL6K+V5L+h5oGvMQ==",
+    "messageProperties": {
+      "contentLength": 0,
+      "contentType": "application/octet-stream",
+      "deliveryTag": 0,
+      "finalRetryForMessageWithNoId": false,
+      "headers": {
+        "spring_returned_message_correlation": "47b8a2cb-3220-42ce-9a97-061e172ccd00"
+      },
+      "lastInBatch": false,
+      "priority": 0,
+      "projectionUsed": false,
+      "publishSequenceNumber": 0,
+      "receivedDeliveryMode": "PERSISTENT"
+    }
+  },
+  "replyCode": 312,
+  "replyText": "NO_ROUTE",
+  "routingKey": "confirm.key123"
+}
+```
+
+> 测试详情
+
+- 当交换机错误时（也就是交换机宕机等消息未被交换机接收的情况），队列确认不会被触发
+
+- 当消息正常被传递到队列时，队列确认不会被触发
+
+- 当交换机正常、交换机错误（未被创建、宕机、routingKey错误等情况），队列确认方法实现会被触发，ReturnedMessage返回如上述的参数
+
+---
 
 #### 回退消息
 

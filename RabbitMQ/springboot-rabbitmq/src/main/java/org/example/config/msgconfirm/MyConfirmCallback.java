@@ -24,6 +24,7 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
     }
 
     /**
+     * 实现 RabbitTemplate.ConfirmCallback 接口
      * 交换机确认回调方法
      * @param correlationData 消息内容，存储消息id及相关信息
      * @param ack 接收确认成功true；失败false
@@ -45,6 +46,7 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
     }
 
     /**
+     * 实现 RabbitTemplate.ReturnsCallback 接口
      * 队列确认回调方法
      * @param returnedMessage 存储队列未接收到消息的信息，如RoutingKey、交换机等
      */

@@ -2301,9 +2301,17 @@ and correlationData is [{"future":{"cancelled":false,"done":true},"id":"a6c51dc7
 * and correlationData is [{"future":{"cancelled":false,"done":true},"id":"150f092d-c4a5-40fa-a4e0-e3432c36d883"}]
 ```
 
-由此可见，我们实现接口并在生产者发送消息时加入`CorrelationData` 参数是有效的。但是用同样的方法测试，将交换机还原（即模拟交换机正常）；并且将Routing Key修改为错误的值（即模拟队列宕机或异常），此时发现消息正常发送，并且被确认接收了，只是消费者未消费而已。由此可见，**上述方式只做了交换机确认，未做队列确认**。
+由此可见，我们实现接口并在生产者发送消息时加入`CorrelationData` 参数是有效的。但是用同样的方法测试，将交换机还原（即模拟交换机正常）；并且将Routing Key修改为错误的值（即模拟队列宕机或异常），此时发现消息正常发送，并且被确认接收了，只是消费者未消费而已。由此可见，**上述方式只做了交换机确认，未做队列确认**。因此，我们需要到下面所述的回退消息来进行队列确认。
 
-##### 队列确认
+---
+
+#### 回退消息
+
+##### Mandatory 参数
+
+**在仅开启了生产者确认机制的情况下，交换机接收到消息后会直接给消息生产者发送确认信息，如果发现该消息不可路由（即交换机无法发送给队列，routing），那么消息会直接被丢弃，此时生产者是不知道消息被丢弃这个事情的**。通过设置 `mandatory` 参数可以在当消息传递过程中不可达目的地时将消息返回给生产者。
+
+##### 回退实现
 
 > 配置文件
 
@@ -2359,11 +2367,13 @@ import javax.annotation.Resource;
                 .getMessageProperties()
                 .getHeaders()
                 .get("spring_returned_message_correlation");
-        log.error("[Queue Err] Queue return loss! The message exchange is :[{}], and routing key is [{}], " +
-                        "and the message correlationData id is [{}], please check the binding!",
+        log.error("[Queue Err] Message is returned! The message exchange is :[{}], and routing key is [{}], " +
+                        "and the message correlationData id is [{}], reply text is [{}]!",
                 returnedMessage.getExchange(),
                 returnedMessage.getRoutingKey(),
-                springReturnedMessageCorrelation);
+                springReturnedMessageCorrelation,
+                returnedMessage.getReplyText()); // 原因
+    }
     }
 }
 ```
@@ -2440,6 +2450,13 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
         rabbitTemplate.setReturnsCallback(this);
     }
 
+    /**
+     * 实现 RabbitTemplate.ConfirmCallback 接口
+     * 交换机确认回调方法
+     * @param correlationData 消息内容，存储消息id及相关信息
+     * @param ack 接收确认成功true；失败false
+     * @param cause 存储失败原因，成功为null；失败为false
+     */
     @Override
     public void confirm(CorrelationData correlationData, boolean ack, String cause) {
         String messageId = "";
@@ -2455,9 +2472,14 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
         }
     }
 
+    /**
+     * 只有但消息不可到达目的地时才回退给生产者
+     * 实现 RabbitTemplate.ReturnsCallback 接口
+     * 队列确认回调方法
+     * @param returnedMessage 存储队列未接收到消息的信息，如RoutingKey、交换机等
+     */
     @Override
     public void returnedMessage(ReturnedMessage returnedMessage) {
-        log.error("return message : {}", JSONObject.toJSONString(returnedMessage));
         // 对应的correlationData存储的消息id，可以在此处获取，
         // 可以理解为correlationData就是headers，只是以map进行存储了
         // 其中，消息的id被存储在了"spring_returned_message_correlation"当中
@@ -2465,11 +2487,12 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
                 .getMessageProperties()
                 .getHeaders()
                 .get("spring_returned_message_correlation");
-        log.error("[Queue Err] Queue return loss! The message exchange is :[{}], and routing key is [{}], " +
-                        "and the message correlationData id is [{}], please check the binding!",
+        log.error("[Queue Err] Message is returned! The message exchange is :[{}], and routing key is [{}], " +
+                        "and the message correlationData id is [{}], reply text is [{}]!",
                 returnedMessage.getExchange(),
                 returnedMessage.getRoutingKey(),
-                springReturnedMessageCorrelation);
+                springReturnedMessageCorrelation,
+                returnedMessage.getReplyText()); // 原因
     }
 }
 
@@ -2477,8 +2500,4 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
 
 ---
 
-#### 回退消息
-
-##### Mandatory 参数
-
-**在仅开启了生产者确认机制的情况下，交换机接收到消息后会直接给消息生产者发送确认信息，如果发现该消息不可路由，那么消息会直接被丢弃，此时生产者是不知道消息被丢弃这个事情的**。通过设置 `mandatory` 参数可以在当消息传递过程中不可达目的地时将消息返回给生产者。
+# 

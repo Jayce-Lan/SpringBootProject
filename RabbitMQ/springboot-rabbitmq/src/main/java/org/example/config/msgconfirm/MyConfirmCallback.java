@@ -46,6 +46,7 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
     }
 
     /**
+     * 只有但消息不可到达目的地时才回退给生产者
      * 实现 RabbitTemplate.ReturnsCallback 接口
      * 队列确认回调方法
      * @param returnedMessage 存储队列未接收到消息的信息，如RoutingKey、交换机等
@@ -59,10 +60,11 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
                 .getMessageProperties()
                 .getHeaders()
                 .get("spring_returned_message_correlation");
-        log.error("[Queue Err] Queue return loss! The message exchange is :[{}], and routing key is [{}], " +
-                        "and the message correlationData id is [{}], please check the binding!",
+        log.error("[Queue Err] Message is returned! The message exchange is :[{}], and routing key is [{}], " +
+                        "and the message correlationData id is [{}], reply text is [{}]!",
                 returnedMessage.getExchange(),
                 returnedMessage.getRoutingKey(),
-                springReturnedMessageCorrelation);
+                springReturnedMessageCorrelation,
+                returnedMessage.getReplyText()); // 原因
     }
 }

@@ -2535,7 +2535,6 @@ public DirectExchange confirmExchange() {
             .durable(true)
             .withArgument("alternate-exchange", BACKUP_EXCHANGE_NAME) // alternate-exchange 备份交换机
             .build();
-
 ```
 
 > 交换机与队列绑定关系
@@ -2617,7 +2616,6 @@ public class WarningConsumer {
                 JSONObject.toJSONString(message));
     }
 }
-
 ```
 
 所在位置（consumer/BackupConsumer.java）
@@ -2645,20 +2643,61 @@ public class BackupConsumer {
                 JSONObject.toJSONString(message));
     }
 }
-
 ```
 
 > 测试结果
 
 - 当模拟交换机失效时，交换机不会将消息转发到备份交换机
 
-- 当交换机成功接收且消息未被路由时，消息被备份交换机截取，并且广播至`BackupConsumer` 与`WarningConsumer` 当中
+- 当交换机成功接收且消息未被路由时，消息被备份交换机截取，并且广播至`BackupConsumer` 与`WarningConsumer` 当中；并且原本开启的 `RabbitTemplate.returnedMessage` 并未被执行
 
 ```shell
-2024-05-29 11:59:57.080  INFO 88798 --- [nio-8999-exec-7] o.example.controller.ProducerController  : [S]Send message success! The message is : [测试信息1]
-2024-05-29 11:59:57.083 ERROR 88798 --- [ntContainer#0-1] org.example.consumer.BackupConsumer      : [Backup] Backup success! The message is not routing! Message : 测试信息1; the detailed message is {"body":"5rWL6K+V5L+h5oGvMQ==","messageProperties":{"consumerQueue":"backup.queue","consumerTag":"amq.ctag-TxVoEUXCfm-Sr2WkgS4vdg","contentLength":0,"contentType":"application/octet-stream","deliveryTag":2,"finalRetryForMessageWithNoId":false,"headers":{"spring_listener_return_correlation":"19f22d18-a703-4b8b-8352-ee07f8dd5107","spring_returned_message_correlation":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"},"lastInBatch":false,"priority":0,"projectionUsed":false,"publishSequenceNumber":0,"receivedDeliveryMode":"PERSISTENT","receivedExchange":"confirm.exchange","receivedRoutingKey":"confirm.key123","redelivered":false}}
-2024-05-29 11:59:57.083  WARN 88798 --- [ntContainer#4-1] org.example.consumer.WarningConsumer     : [Warn] Warning! The message is not routing! Message : 测试信息1; the detailed message is {"body":"5rWL6K+V5L+h5oGvMQ==","messageProperties":{"consumerQueue":"warning.queue","consumerTag":"amq.ctag-9Cb0wvxolCXTOHRH1AKLIA","contentLength":0,"contentType":"application/octet-stream","deliveryTag":2,"finalRetryForMessageWithNoId":false,"headers":{"spring_listener_return_correlation":"19f22d18-a703-4b8b-8352-ee07f8dd5107","spring_returned_message_correlation":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"},"lastInBatch":false,"priority":0,"projectionUsed":false,"publishSequenceNumber":0,"receivedDeliveryMode":"PERSISTENT","receivedExchange":"confirm.exchange","receivedRoutingKey":"confirm.key123","redelivered":false}}
-2024-05-29 11:59:57.089  INFO 88798 --- [nectionFactory3] o.e.config.msgconfirm.MyConfirmCallback  : [Ex]Exchange is received success, the message id is [3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa], and correlationData is [{"future":{"cancelled":false,"done":true},"id":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"}]
+INFO  : [S]Send message success! The message is : [测试信息1]
+ERROR : [Backup] Backup success! The message is not routing! Message : 测试信息1; the detailed message is {"body":"5rWL6K+V5L+h5oGvMQ==","messageProperties":{"consumerQueue":"backup.queue","consumerTag":"amq.ctag-TxVoEUXCfm-Sr2WkgS4vdg","contentLength":0,"contentType":"application/octet-stream","deliveryTag":2,"finalRetryForMessageWithNoId":false,"headers":{"spring_listener_return_correlation":"19f22d18-a703-4b8b-8352-ee07f8dd5107","spring_returned_message_correlation":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"},"lastInBatch":false,"priority":0,"projectionUsed":false,"publishSequenceNumber":0,"receivedDeliveryMode":"PERSISTENT","receivedExchange":"confirm.exchange","receivedRoutingKey":"confirm.key123","redelivered":false}}
+WARN  : [Warn] Warning! The message is not routing! Message : 测试信息1; the detailed message is {"body":"5rWL6K+V5L+h5oGvMQ==","messageProperties":{"consumerQueue":"warning.queue","consumerTag":"amq.ctag-9Cb0wvxolCXTOHRH1AKLIA","contentLength":0,"contentType":"application/octet-stream","deliveryTag":2,"finalRetryForMessageWithNoId":false,"headers":{"spring_listener_return_correlation":"19f22d18-a703-4b8b-8352-ee07f8dd5107","spring_returned_message_correlation":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"},"lastInBatch":false,"priority":0,"projectionUsed":false,"publishSequenceNumber":0,"receivedDeliveryMode":"PERSISTENT","receivedExchange":"confirm.exchange","receivedRoutingKey":"confirm.key123","redelivered":false}}
+INFO  : [Ex]Exchange is received success, the message id is [3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa], and correlationData is [{"future":{"cancelled":false,"done":true},"id":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"}]
 ```
 
 当 mandatory 参数与备份交换机一起使用时，**两者同时开启，备份交换机优先级较高**，也就是以备份交换机为准，当不可到达时，不再打印`returnedMessage` （回退消息）的实现，即未被执行。
+
+---
+
+## RabbitMQ 其他知识点
+
+### 幂等性
+
+#### 概念
+
+用户对于同一操作做发起的一次或者多次请求的结果是一致的，不会因为多次点击而产生了副作用。举个最简单的例子——支付——用户购买商品后支付，支付扣款成功，但是返回结果的时候网络异常，此时已经扣款，用户再次点击按钮就会二次扣款，返回结果成功，用户查询余额发现多扣款了，流水记录也变成了两条。在以前的单应用系统中，只需要把数据操作放入事务中即可，发生错误立即回滚，但是在响应客户端的时候也有可能出现网络中断或者异常等。
+
+#### 消息重复消费
+
+消费者在消费 MQ 中的消息时，MQ 已经把消息发送给消费者，消费者在给 MQ 返回 ack 时网络中断，故 MQ 未接收到确认信息，该条消息会重新发给其他消费者，或者在网络重连后再次发送给消费者，但实际上该消费者已经成功消费了这条消息，造成消费者消费了重复的消息。
+
+#### 解决思路
+
+- MQ 消费者的幂等性的解决一般使用全局 ID 或者写个唯一标识，比如时间戳、UUID 
+
+- 订单消费者消费 MQ 中的消息也可利用 MQ 的该 id 来判断
+
+- 可以按自己的规则生成一个全局唯一 id，每次消费消息时用该 id 先判断该消息是否已经消费过
+
+#### 消费端的幂等性保障
+
+在海量订单生成的业务高峰期，生产端可能就会重复发生了消息，这时候消费端要实现幂等性，就意味着消息永远不会被消费多次，即使接收到一样的消息。业界主流的幂等性操作有两种：
+
+- 唯一 ID+指纹码机制，利用数据库主键去重
+
+- 利用 Redis 的原子性实现
+
+> 唯一 ID+指纹码机制
+
+指纹码：我们的一些规则或者时间戳加别的服务给到的唯一信息码，它并不一定是系统生成的，基本都是由业务规则拼接而来，但是一定要保证唯一性，然后利用查询语句判断这个 id 是否存在数据库中，优势就是实现简单就一个拼接，然后查询判断是否重复；劣势就是在高并发时，如果是单个数据库就会有写入性能瓶颈，当然也可以采用分库分表提升性能，但是不是最推荐的方式。
+
+> Redis 原子性
+
+利用 Redis 执行 `setnx` 命令，天然具有幂等性，从而实现不重复消费。
+
+### 优先级队列
+
+#### 使用场景

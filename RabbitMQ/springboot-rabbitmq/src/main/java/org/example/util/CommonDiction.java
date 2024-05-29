@@ -78,4 +78,17 @@ public class CommonDiction {
      */
     public static final String CONFIRM_ROUTING_KEY = "confirm.key";
 
+    /**
+     * 备份交换机
+     */
+    public static final String BACKUP_EXCHANGE_NAME = "backup.exchange";
+    /**
+     * 备份队列
+     */
+    public static final String BACKUP_QUEUE_NAME = "backup.queue";
+    /**
+     * 报警队列
+     */
+    public static final String BACKUP_WARNING_QUEUE_NAME = "warning.queue";
+
 }

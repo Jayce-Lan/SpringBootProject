@@ -2495,9 +2495,170 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
                 returnedMessage.getReplyText()); // 原因
     }
 }
-
 ```
 
 ---
 
-# 
+#### 备份交换机
+
+有了mandatory参数和回退消息，我们获得了对无法投递消息的感知能力，有机会在生产者的消息无法被投递时发现并处理。但有时候，我们并不知道该如何处理这些无法路由的消息，最多打个日志，然后触发警报手动处理。而通过日子来处理这些无法路由的消息不是很优雅的做法，特别是当生产者所在的服务器有多台的时候，手动复制日子更加麻烦且容易出错。而且设置mandatory参数会增加生产者的复杂性，需要添加处理这些被退回的消息的逻辑。如果即不想丢失消息，又不想增加生产者的复杂性该如何处理？
+
+前面在设置死信队列的课程中有提到，可以为队列设置死信交换机来保存消息。在Rabbit MQ中，有一种备份交换机的机制存在，可以很好的应对这个问题。
+
+> 备份交换机
+
+备份交换机可以理解为RabbitMQ交换机中的“备胎”，当我们为某一个交换机声明一个对应的备份交换机时，就是为它创建一个备胎，但交换机接受到一条不可路由的消息时，将会把这条消息转发到备份交换机中，由备份交换机来进行转发和处理，通常备份交换机的类型为`Fanout` ，这样就能把所有消息都投递到与其绑定的队列中，然后我们在备份交换机下绑定一个队列，这样所有那些原交换机无法被路由的消息，就会都进入这个队列了。当然还可以建立一个报警队列，用独立的消费者来进行检测和报警。
+
+##### 代码架构图
+
+图: *img/mq24-backupexchange.png*
+
+![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq24-backupexchange.png)
+
+##### 配置绑定关系代码
+
+在上述原来的 `ConfirmConfig` 基础上进行修改
+
+> 修改原来交换机的策略
+
+```java
+/**
+ * 发布确认交换机
+ * @return 发布确认交换机
+ */
+@Bean
+public DirectExchange confirmExchange() {
+    // 由于需要做交换机备份，因此需要改造
+    // 如果使用上面的new DirectExchange(CONFIRM_EXCHANGE_NAME)，那么durable默认为true，因此此处需要声明
+    // withArgument(key, value)为单个键值对，withArguments(map)为map存储多个键值对
+    return ExchangeBuilder.directExchange(CONFIRM_EXCHANGE_NAME)
+            .durable(true)
+            .withArgument("alternate-exchange", BACKUP_EXCHANGE_NAME) // alternate-exchange 备份交换机
+            .build();
+
+```
+
+> 交换机与队列绑定关系
+
+```java
+/**
+ * 备份交换机
+ * 以Fanout扇出形式将消息投递给backupQueue和warningQueue
+ * @return 备份交换机
+ */
+@Bean
+public FanoutExchange backupExchange() {
+    return new FanoutExchange(BACKUP_EXCHANGE_NAME);
+}
+/**
+ * 备份队列
+ * @return 接收备份交换机传递的消息
+ */
+@Bean
+public Queue backupQueue() {
+    return new Queue(BACKUP_QUEUE_NAME);
+}
+/**
+ * 报警队列
+ * @return 接收备份交换机传递的消息
+ */
+@Bean
+public Queue warningQueue() {
+    return new Queue(BACKUP_WARNING_QUEUE_NAME);
+}
+/**
+ * 绑定备份队列与备份交换机的关系
+ * @param backupQueue 备份队列
+ * @param backupExchange 备份交换机
+ * @return 绑定关系
+ */
+@Bean
+Binding backupQueueBindingBackupExchange(Queue backupQueue,
+                                         FanoutExchange backupExchange) {
+    return BindingBuilder.bind(backupQueue).to(backupExchange);
+}
+/**
+ * 绑定报警队列与备份交换机的关系
+ * @param warningQueue 报警队列
+ * @param backupExchange 备份交换机
+ * @return 绑定关系
+ */
+@Bean
+Binding warningQueueBindingBackupExchange(Queue warningQueue,
+                                         FanoutExchange backupExchange) {
+    return BindingBuilder.bind(warningQueue).to(backupExchange);
+}
+```
+
+> 消费者
+
+所在位置（consumer/WarningConsumer.java）
+
+```java
+package org.example.consumer;
+
+import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+
+import static org.example.util.CommonDiction.BACKUP_WARNING_QUEUE_NAME;
+
+@Component
+@Slf4j
+public class WarningConsumer {
+    @RabbitListener(queues = BACKUP_WARNING_QUEUE_NAME)
+    public void receivedBackupMsg(Message message) {
+        log.warn("[Warn] Warning! The message is not routing! Message : {}; the detailed message is {}",
+                new String(message.getBody(), StandardCharsets.UTF_8),
+                JSONObject.toJSONString(message));
+    }
+}
+
+```
+
+所在位置（consumer/BackupConsumer.java）
+
+```java
+package org.example.consumer;
+
+import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+
+import static org.example.util.CommonDiction.BACKUP_QUEUE_NAME;
+
+@Component
+@Slf4j
+public class BackupConsumer {
+    @RabbitListener(queues = BACKUP_QUEUE_NAME)
+    public void receivedBackupMsg(Message message) {
+        log.error("[Backup] Backup success! The message is not routing! Message : {}; the detailed message is {}",
+                new String(message.getBody(), StandardCharsets.UTF_8),
+                JSONObject.toJSONString(message));
+    }
+}
+
+```
+
+> 测试结果
+
+- 当模拟交换机失效时，交换机不会将消息转发到备份交换机
+
+- 当交换机成功接收且消息未被路由时，消息被备份交换机截取，并且广播至`BackupConsumer` 与`WarningConsumer` 当中
+
+```shell
+2024-05-29 11:59:57.080  INFO 88798 --- [nio-8999-exec-7] o.example.controller.ProducerController  : [S]Send message success! The message is : [测试信息1]
+2024-05-29 11:59:57.083 ERROR 88798 --- [ntContainer#0-1] org.example.consumer.BackupConsumer      : [Backup] Backup success! The message is not routing! Message : 测试信息1; the detailed message is {"body":"5rWL6K+V5L+h5oGvMQ==","messageProperties":{"consumerQueue":"backup.queue","consumerTag":"amq.ctag-TxVoEUXCfm-Sr2WkgS4vdg","contentLength":0,"contentType":"application/octet-stream","deliveryTag":2,"finalRetryForMessageWithNoId":false,"headers":{"spring_listener_return_correlation":"19f22d18-a703-4b8b-8352-ee07f8dd5107","spring_returned_message_correlation":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"},"lastInBatch":false,"priority":0,"projectionUsed":false,"publishSequenceNumber":0,"receivedDeliveryMode":"PERSISTENT","receivedExchange":"confirm.exchange","receivedRoutingKey":"confirm.key123","redelivered":false}}
+2024-05-29 11:59:57.083  WARN 88798 --- [ntContainer#4-1] org.example.consumer.WarningConsumer     : [Warn] Warning! The message is not routing! Message : 测试信息1; the detailed message is {"body":"5rWL6K+V5L+h5oGvMQ==","messageProperties":{"consumerQueue":"warning.queue","consumerTag":"amq.ctag-9Cb0wvxolCXTOHRH1AKLIA","contentLength":0,"contentType":"application/octet-stream","deliveryTag":2,"finalRetryForMessageWithNoId":false,"headers":{"spring_listener_return_correlation":"19f22d18-a703-4b8b-8352-ee07f8dd5107","spring_returned_message_correlation":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"},"lastInBatch":false,"priority":0,"projectionUsed":false,"publishSequenceNumber":0,"receivedDeliveryMode":"PERSISTENT","receivedExchange":"confirm.exchange","receivedRoutingKey":"confirm.key123","redelivered":false}}
+2024-05-29 11:59:57.089  INFO 88798 --- [nectionFactory3] o.e.config.msgconfirm.MyConfirmCallback  : [Ex]Exchange is received success, the message id is [3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa], and correlationData is [{"future":{"cancelled":false,"done":true},"id":"3c5fcdf0-5621-4e84-8ff7-1bc5f3371ffa"}]
+```
+
+当 mandatory 参数与备份交换机一起使用时，**两者同时开启，备份交换机优先级较高**，也就是以备份交换机为准，当不可到达时，不再打印`returnedMessage` （回退消息）的实现，即未被执行。

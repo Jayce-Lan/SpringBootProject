@@ -91,4 +91,9 @@ public class CommonDiction {
      */
     public static final String BACKUP_WARNING_QUEUE_NAME = "warning.queue";
 
+    /**
+     * 用于测试优先级队列的队列
+     */
+    public static final String PRIORITY_QUEUE_NAME = "priority.queue";
+
 }

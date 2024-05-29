@@ -2535,6 +2535,7 @@ public DirectExchange confirmExchange() {
             .durable(true)
             .withArgument("alternate-exchange", BACKUP_EXCHANGE_NAME) // alternate-exchange 备份交换机
             .build();
+}
 ```
 
 > 交换机与队列绑定关系
@@ -2701,3 +2702,94 @@ INFO  : [Ex]Exchange is received success, the message id is [3c5fcdf0-5621-4e84-
 ### 优先级队列
 
 #### 使用场景
+
+在系统中有一个“订单催付”的场景，客户在天猫下的订单，淘宝会及时将订单推送给我们，如果用户在设定的时间内未付款那么就会给用户推送一条短信提醒。
+
+但是商家我们需要进行排列优先级，例如 Apple、小米这种一年能创造很大利润的商家理所当然订单要进行优先级处理，而曾经我们的后端是使用 Redis 来存放的定时轮询，但是 Redis 只能用 List 做一个简单的消息队列，并不能实现优先级场景，所以订单量大了后采用 RabbitMQ 进行改造和优化，如果发现时大客户的订单给一个相对较高的优先级，否则就是默认优先级。
+
+> 优先级队列区间
+
+优先级队列的优先级设定区间为`0-255` ，越大越优先被消费。
+
+*tips： **优先级的数值越大，对电脑性能损耗越高**。*
+
+#### 优先级队列的使用
+
+##### 在队列设置优先级
+
+> 在 RabbitMQ 的管理界面创建
+
+在 `Add a new queue` 模块下，Arguments 参数设定 `x-max-priority` = [0, 255] 即可
+
+> 在代码中创建
+
+其实是在创建队列时，arguments 的 map 中加入优先级队列设置参数，创建成功后可以在界面看到`Pri` 标识
+
+```java
+@Bean
+public Queue priorityQueue() {
+    Map<String, Object> arguments = new HashMap<>();
+    arguments.put("x-max-priority", Integer.valueOf(5));
+    return QueueBuilder.durable(PRIORITY_QUEUE_NAME)
+            .withArguments(arguments)
+            .build();
+}
+```
+
+##### 在消息设置优先级
+
+要让队列实习优先级需要做的除了队列需要设置优先级还需要为消息设置优先级，消费者需要等待消息已经发送到队列中才去消费，这样才会有机会对消息进行排序。
+
+在Spring AMQP中，可以通过`RabbitTemplate`类发送携带`BasicProperties`的消息。`BasicProperties`是一个提供丰富消息属性设置的类，包括消息的contentType、headers、priority、correlationId等。
+
+> 在原生 Java 中
+
+```java
+AMQP.BasicProperties properties = new AMQP.BasicProperties.builder()
+                             .priority(5) // 优先级为 5
+                             .build();
+channel.basicPublish("", QUEUE_NAME, properties, message.getBytes(StandardCharsets.UTF_8));
+```
+
+> 在 Spring AMQP 中
+
+其实实质就是调用`RabbitTemplate.send()` 方法，并且将配置好的参数写入到 `new Message()` 当中
+
+```java
+// 设置配置类
+MessageProperties messageProperties = new MessageProperties();
+// 配置生产者发送消息优先级
+messageProperties.setPriority(priority);
+rabbitTemplate.send(exchange, routingKey, new Message(message.getBytes(StandardCharsets.UTF_8), messageProperties));
+```
+
+> 生产者
+
+所在位置（controller/OtherController.java）
+
+```java
+/**
+ * 测试优先级队列
+ */
+@GetMapping("testPriority")
+public void testPrioritySend() {
+    for (int i = 0; i <= 15; i++) {
+        String message = "info" + i;
+        // 添加消息配置
+        MessageProperties messageProperties = new MessageProperties();
+        // 设置优先级
+        messageProperties.setPriority(5);
+        if (i % 5 == 0) {
+            log.info("[S-P] Send message is success , the message is {}, and this is priority!", i);
+            // 使用 rabbitTemplate.send可以承接上面设置好优先级的参数
+            rabbitTemplate.send("", PRIORITY_QUEUE_NAME,
+                    new Message(message.getBytes(StandardCharsets.UTF_8), messageProperties));
+        } else {
+            log.info("[S-N] Send message is success , the message is {}", i);
+            rabbitTemplate.convertAndSend(PRIORITY_QUEUE_NAME, message.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+}
+```
+
+---

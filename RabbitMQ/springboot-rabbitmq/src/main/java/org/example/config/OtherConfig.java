@@ -17,6 +17,13 @@ import static org.example.util.CommonDiction.PRIORITY_QUEUE_NAME;
 @Configuration
 @Slf4j
 public class OtherConfig {
+    /**
+     * 设置优先级队列
+     * x-max-priority 队列优先级参数的 key，其 value 为0-255中任意数字
+     * 但是数字越大对计算机性能影响越高，因为需要堆积队列并重新排序
+     * 此方法只有在有消息堆积时有效，消息生产一条就消费一条的情况下是无效的
+     * @return 优先级队列
+     */
     @Bean
     public Queue priorityQueue() {
         Map<String, Object> arguments = new HashMap<>();

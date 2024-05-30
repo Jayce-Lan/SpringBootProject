@@ -12,7 +12,7 @@ Rabbit MQ是一个消息中间件，它接受并转发消息。可以把它当�
 
 图：*img/mq1-llxf.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq1-llxf.png)
+![img/mq1-llxf.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq1-llxf.png)
 
 > 降低藕合调用给用户带来的不流畅体验
 
@@ -20,7 +20,7 @@ Rabbit MQ是一个消息中间件，它接受并转发消息。可以把它当�
 
 图：*img/mq2-yyjo.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq2-yyjo.png)
+![img/mq2-yyjo.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq2-yyjo.png)
 
 > 异步处理
 
@@ -38,7 +38,7 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 
 图：*img/mq3-ybcl.png*
 
-<img title="" src="file:///Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq3-ybcl.png" alt="" width="288">
+![img/mq3-ybcl.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq3-ybcl.png)
 
 ### MQ分类与对比
 
@@ -79,7 +79,7 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 
 图：*img/mq4-hxms.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq4-hxms.png)
+![img/mq4-hxms.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq4-hxms.png)
 
 简单模式（Hello World）
 
@@ -99,7 +99,7 @@ A调用B服务后，只需要监听B处理完成的信息，当B处理完成后�
 
 图：*img/mq5-gzyl.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq5-gzyl.png)
+![img/mq5-gzyl.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq5-gzyl.png)
 
 **Broker**：接收和分发消息的应用，Rabbit MQ Server就是Message Broker
 
@@ -163,7 +163,7 @@ public static Channel getChannel() throws IOException, TimeoutException {
 
 图：*img/mq6-hello.png*
 
-<img src="file:///Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq6-hello.png" title="" alt="" width="276">
+![img/mq6-hello.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq6-hello.png)
 
 > 代码实现
 
@@ -249,7 +249,7 @@ private void testHelloWorldReceived() throws IOException, TimeoutException {
 
 图：*img/mq7-workQueues.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq7-workQueues.png)
+![img/mq7-workQueues.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq7-workQueues.png)
 
 #### 消费者声明队列
 
@@ -366,7 +366,7 @@ channel.basicAck(deliceryTag, true);
 
 图：*img/mq8-ack.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq8-ack.png)
+![img/mq8-ack.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq8-ack.png)
 
 ###### 消息自动重新入队
 
@@ -374,7 +374,7 @@ channel.basicAck(deliceryTag, true);
 
 图：*img/mq9-ack.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq9-ack.png)
+![img/mq9-ack.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq9-ack.png)
 
 由上图可见消息手动应答有两个特性：
 
@@ -476,7 +476,7 @@ channel.queueDeclare("queueName", durable, false, false, null);
 
 图：*img/mq10-Durable.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq10-Durable.png)
+![img/mq10-Durable.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq10-Durable.png)
 
 *Tips：当一个队列名称在对应的Virtual host已经存在，并且为非持久化时，创建同名的持久化队列会报创建错误。*
 
@@ -572,7 +572,7 @@ channel.basicQos(prefetchCount);
 
 图：*img/mq11-FairDispatch.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq11-FairDispatch.png)
+![img/mq11-FairDispatch.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq11-FairDispatch.png)
 
 > 代码实例
 
@@ -628,7 +628,7 @@ private void testWorkQueuesFairDispatchReceived01() throws IOException, TimeoutE
 
 图：*img/mq12-basicQos.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq12-basicQos.png)
+![img/mq12-basicQos.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq12-basicQos.png)
 
 ---
 
@@ -754,7 +754,7 @@ private void testWorkQueueConfirmSelectBatchSent() {
 
 图：*img/mq13-Confirm.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq13-Confirm.png)
+![img/mq13-Confirm.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq13-Confirm.png)
 
 创建一个`channel.addConfirmListener` 为监听器，监听回调函数。该方法有两个构造函数：
 
@@ -980,7 +980,7 @@ private void testWorkQueueConfirmAsyncSent() {
 
 图：*img/mq14-Publish/Subscribe.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq14-Publish:Subscribe.png)
+![img/mq14-Publish/Subscribe.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq14-Publish:Subscribe.png)
 
 *tips:* 在前面没有交换机介入时，一条消息只能被消费一次，因为一个队列只能对应一个消费者
 
@@ -1038,7 +1038,7 @@ String queueName = channel.queueDeclare().getQueue();
 
 图：*img/mq15-binding.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq15-binding.png)
+![img/mq15-binding.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq15-binding.png)
 
 > 实例代码
 
@@ -1056,7 +1056,7 @@ channel.queueBind(queueName, "logs", "");
 
 图：*img/mq16-Fanout.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq16-Fanout.png)
+![img/mq16-Fanout.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq16-Fanout.png)
 
 > 生产者代码实例
 
@@ -1130,7 +1130,7 @@ Fanout我们使用的是扇出交换器，它没有给我们提供太多的灵�
 
 图：*img/mq17-direct.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq17-direct.png)
+![img/mq17-direct.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq17-direct.png)
 
 在此设置中，我们可以看到`direct` 交换机 X 绑定了两个队列。第一个队列绑定了`orange`绑定密钥，第二个队列有两个绑定密钥，一个是`black`绑定密钥，另一个是`green`绑定密钥。  
 
@@ -1142,7 +1142,7 @@ Fanout我们使用的是扇出交换器，它没有给我们提供太多的灵�
 
 图：*img/mq18-MultipleBindings.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq18-MultipleBindings.png)
+![img/mq18-MultipleBindings.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq18-MultipleBindings.png)
 
 #### 队列绑定
 
@@ -1253,7 +1253,7 @@ private void testDirectReceived() throws IOException, TimeoutException {
 
 图：*img/mq19-topics.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq19-topics.png)
+![img/mq19-topics.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq19-topics.png)
 
 在本例中，我们要发送的信息都是描述动物的。这些信息将使用由三个单词（两个点）组成的路由密钥发送。路由键中的第一个单词描述速度，第二个单词描述颜色，第三个单词描述物种：`<speed>.<colour>.<species>`
 
@@ -1365,7 +1365,7 @@ private void testTopicsReceived() throws IOException, TimeoutException {
 
 图：*img/mq20-deadQueue.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq20-deadQueue.png)
+![img/mq20-deadQueue.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq20-deadQueue.png)
 
 *tips：C1和C2不会同时消费，只有C1不消费的情况下才会被C2消费；并且C2的消息是由C1接受失败后转发给死信交换机并转发给C2的，而不是生产者生产后直接放入死信交换机的*
 
@@ -1735,7 +1735,7 @@ spring:
 
 图：*img/mq21-TTL.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq21-TTL.png)
+![img/mq21-TTL.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq21-TTL.png)
 
 ##### 配置绑定关系代码
 
@@ -1874,7 +1874,7 @@ public class DeadLetterQueueConsumer {
 
 图：*img/mq22-TTLMakeSuperior.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq22-TTLMakeSuperior.png)
+![img/mq22-TTLMakeSuperior.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq22-TTLMakeSuperior.png)
 
 ##### 配置绑定关系代码
 
@@ -2113,7 +2113,7 @@ public class DelayedQueueConsumer {
 
 图：*img/mq23-confirm.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq23-confirm.png)
+![img/mq23-confirm.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq23-confirm.png)
 
 ##### 代码架构
 
@@ -2513,7 +2513,7 @@ public class MyConfirmCallback implements RabbitTemplate.ConfirmCallback, Rabbit
 
 图: *img/mq24-backupexchange.png*
 
-![](/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/RabbitMQ/img/mq24-backupexchange.png)
+![img/mq24-backupexchange.png](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq24-backupexchange.png)
 
 ##### 配置绑定关系代码
 
@@ -2698,6 +2698,8 @@ INFO  : [Ex]Exchange is received success, the message id is [3c5fcdf0-5621-4e84-
 > Redis 原子性
 
 利用 Redis 执行 `setnx` 命令，天然具有幂等性，从而实现不重复消费。
+
+---
 
 ### 优先级队列
 

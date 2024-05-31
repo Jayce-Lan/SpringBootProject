@@ -2840,3 +2840,17 @@ return QueueBuilder // 构建一个队列
 | lazy    | 小（因为只存放索引）   | 慢（还需要通过内存的索引去读取磁盘上的数据） |
 
 ---
+
+## RabbitMQ集群
+
+### clustering
+
+#### 使用集群的原因
+
+前面的学习中，都是 Rabbit MQ 单机服务，无法满足真实应用需求。如果 RabbitMQ 服务器遇到内存崩溃、机器掉电或者主板故障等情况；单台 RabbitMQ 服务器可以满足每秒 1000 条消息的吞吐量，如果需要满足每秒 10 万条消息吞吐量等极端问题需要如何处理？
+
+购买昂贵的服务器来增强单机 RabbitMQ 服务的性能显得捉襟见肘，搭建一个 RabbitMQ 集群才是解决实际问题的关键。
+
+#### 搭建步骤
+
+![img/mq25-clustering](https://gitee.com/Jayce_Lan/some_img/raw/master/RabbitMQLearnImg/mq25-clustering.png)

@@ -33,3 +33,123 @@
 21. **访问者模式（Visitor）** - 对象结构中的元素对象分别作用于一个访问者对象，让这个访问者对象决定如何处理每一个元素。
 22. **中介者模式（Mediator）** - 定义一个中介对象来简化原有对象的交互。
 23. **解释器模式（Interpreter）** - 定义一个语言的文法，并构建一个解释器，这个解释器可以解释和执行语言中的句子。
+
+## 各个模式的说明
+
+### Iterator-迭代器模式
+
+#### 设计模式说明
+
+![迭代器模式类图](https://gitee.com/Jayce_Lan/some_img/raw/master/design/iterator.png)
+
+> `Iterator` 迭代器
+
+该角色负责定义按顺序逐个遍历元素的接口（API）。它定义了`hasNext`和`next` 两个方法。其中，`hasNext` 方法用语判断是否存在下一个元素，`next`方法则用于获取该元素。
+
+```java
+public interface Iterator {
+    abstract boolean hasNext();
+    abstract Object next();
+}
+```
+
+> `ConcreteIterator` 具体的迭代器
+
+该角色负责实现 `Iterator`角色所定义的接口。该角色中包含了遍历集合所必须的信息。
+
+`BookShelf` 类的实例保存在 `bookShelf` 字段中，被指向书的下标保存在`index` 字段中。
+
+```java
+public class BookShelfIterator implements Iterator {
+    private BookShelf bookShelf;
+    private Integer index;
+
+    public BookShelfIterator(BookShelf bookShelf) {
+        this.bookShelf = bookShelf;
+        this.index = 0;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return index < bookShelf.getLength();
+    }
+
+    @Override
+    public Object next() {
+        Book book = bookShelf.getBookAt(this.index);
+        this.index++;
+        return book;
+    }
+}
+```
+
+> `Aggregate` 集合
+
+该角色负责定义创建`Iterator` 角色的接口。这个接口是一个方法，会创建出“按顺序访问保存在自身内部元素的对象”。
+
+```java
+public interface Aggregate {
+    /**
+     * 需要遍历集合元素时，可以调用该方法来生成一个实现了 Iterator 接口的类的实例
+     * @return 生成一个用于遍历集合的迭代器
+     */
+    abstract Iterator iterator();
+}
+```
+
+> `ConcreteAggregate` 具体的集合
+
+该角色负责实现 `Aggregate` 角色所定义的接口。它会创建具体的 `Iterator` 角色，即`ConcreteIterator` 角色。它实现了`itreator` 方法。
+
+```java
+public class BookShelf implements Aggregate {
+    private List<Book> books;
+//    private Book[] books; // 如果使用数组而不是List会无法存储大于初始定义长度的对象
+    private int last = 0;
+
+    public BookShelf(int maxSize) {
+        this.books = new ArrayList<Book>(maxSize);
+//        this.books = new Book[maxSize];
+    }
+
+    public Book getBookAt(int index) {
+        return books.get(index);
+//        return books[index];
+    }
+
+    public void appendBook(Book book) {
+        this.books.add(book);
+//        this.books[last] = book;
+        last++;
+    }
+
+    public int getLength() {
+        return last;
+    }
+
+    @Override
+    public Iterator iterator() {
+        return new BookShelfIterator(this);
+    }
+}
+```
+
+#### 扩展思路
+
+> 为什么要引入设计模式
+
+其实直接使用for循环也可以实现遍历，而在集合之外引入`Iterator` 这个角色，旨在于可以将遍历与实现分开来。
+
+```java
+while (iterator.hasNext()) {
+    log.info("item >>>>> {}", iterator.next());
+}
+```
+
+这里只用了`Iterator` 的`hasNext`方法和 `next`方法，并没有调用 `BookShelf` 的方法，也就是说，**while循环并不依赖于BookShelf的实现**。
+
+如果往下决定弃用数组/List管理而用 `java.util.Vector` ，不管BookShelf如何变幻，只要它的`iterator` 方法能正确返回Iterator实例，即使不改变while循环，代码仍然可用。
+
+> 抽象类和接口
+
+使用接口与实现关系，是为了解耦合。如果只使用实现类，容易导致类之间有强耦合，所有类都难以被再次利用。为了弱化类之间的耦合，进而使得类更加容易作为组件被再次利用，需要引入抽象类和接口。这也是贯穿设计模式的思想。

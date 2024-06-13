@@ -100,8 +100,6 @@ NoSQL（Not only SQL），即“不仅仅是 SQL”，泛指**非关系型的数
 
 - 可以根据数据的特点替代 RDBMS，成为独立的数据库，或者配合 RDBMS，存储特定的数据
 
-
-
 > 关键术语 Memcached
 
 Memcached是一个高性能的分布式内存缓存系统，广泛用于提高大型动态网站和应用程序的性能。它通过缓存数据和对象来减少读取外部数据源（如数据库或API）的次数，从而加快数据检索速度并降低延迟。
@@ -187,5 +185,7 @@ select avg(age) from user # 慢
 select * from user where id = 1 # 慢
 select avg(age) from user # 快
 ```
+
+---
 
 ## 常用五大数据类型

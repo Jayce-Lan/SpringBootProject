@@ -313,3 +313,129 @@ Adapter模式的主人公，使用Adaptee角色的方法来满足Target角色的
 当然，Adaptee角色和Target角色功能完全不同时，适配器模式无法使用。就如同无法使用交流100伏特电压转换出自来水。
 
 ---
+
+### 模板方法模式（Template Method）
+
+#### 设计模式实现
+
+模板的原意是指带有镂空文字的塑料板，只要用笔在模板镂空处进行临摹就能写出整齐的文字。
+
+在Template Method模式中，组成模板的方法被定义在父类中。由于都是抽象方法，所以只查看父类是无法知道方法的具体实现的，只能知道父类如何调用这些方法。
+
+实现这些抽象方法的是子类，在之类中实现了抽象方法也决定了具体的处理。只要在不同的子类中实现不同的具体处理，当父类的模板方法被调用时程序行为也会不同。但是无论如何实现，处理流程都按照父类定义进行。
+
+如上述所说**在父类中定义流程处理的框架，在子类中实现具体处理**的模式称为**Template Method模板模式**。
+
+| 类名              | 说明                                        |
+| --------------- | ----------------------------------------- |
+| AbstractDisplay | 定义了open、print、close抽象方法，并且只实现了display的抽象类 |
+| CharDisplay     | 实现了open、print、close方法的类                   |
+| StringDisplay   | 实现了open、print、close方法的类                   |
+| Main            | 测试程序行为的类                                  |
+
+![模板模式](https://gitee.com/Jayce_Lan/some_img/raw/master/design/template-method.png)
+
+> AbstractDisplay
+
+定义了模板，并且抽象类定义的抽象方法，即使被new了本身，也需要实现。
+
+```java
+public abstract class AbstractDisplay {
+    public abstract void open();
+    public abstract void print();
+    public abstract void close();
+
+    public final void display() {
+        open();
+        for (int i = 0; i < 5; i++) {
+            print();
+        }
+        close();
+    }
+}
+```
+
+> CharDisplay
+
+```java
+public class CharDisplay extends AbstractDisplay {
+    private Logger log = LogManager.getLogger(CharDisplay.class);
+
+    private char aChar;
+
+    public CharDisplay(char aChar) {
+        this.aChar = aChar;
+    }
+
+    @Override
+    public void open() {
+        log.info("== char open ==");
+    }
+
+    @Override
+    public void print() {
+        log.info("char >>>>> {}", this.aChar);
+    }
+
+    @Override
+    public void close() {
+        log.info("== char close ==");
+    }
+}
+```
+
+> StringDisplay
+
+```java
+public class StringDisplay extends AbstractDisplay {
+    private Logger log = LogManager.getLogger(StringDisplay.class);
+
+    private String string;
+
+    public StringDisplay(String string) {
+        this.string = string;
+
+    }
+
+    @Override
+    public void open() {
+        log.info("== string open ==");
+    }
+
+    @Override
+    public void print() {
+        log.info("string print >>>>> {}", this.string);
+    }
+
+    @Override
+    public void close() {
+        log.info("== string close ==");
+    }
+}
+```
+
+#### 设计模式说明
+
+![模板模式](https://gitee.com/Jayce_Lan/some_img/raw/master/design/template-method02.png)
+
+> AbstractClass 抽象类
+
+AbstractClass角色不仅负责实现模板方法，还负责声明在模板方法中使用到的抽象方法。这些方法由ConcreteClass角色负责实现。在程序实例中对应的是`AbstractDisplay` 类。
+
+> ConcreteClass 具体类
+
+该角色负责具体实现AbstractClass角色中定义的抽象方法。在这里实现的方法会在AbstractClass角色的模板方法中被调用。在程序实例中对应的是`CharDisplay` 和`StringDisplay` 类。
+
+#### 设计思路
+
+模板模式的优点在于父类模板方法中编写了算法（统一方法），因此无需在每个子类中重新编写。
+
+例如，未使用模板模式时，复制粘贴多个Class，编写完后很长时间才发现bug，就必须将修改映射到所有的Class中。如果使用模板模式，只需要修改模板方法即可解决问题。
+
+无论在CharDisplay的实例还是StringDisplay的实例，都先保存在AbstractDisplay类型的变量中，然后再调用`display()`方法。
+
+使用父类类型的变量保存子类实例的优点是，即使没有用`instanceof`等指定之类的种类，程序也能正常工作。
+
+无论在父类类型的变量中保存哪个子类实例，程序都可以正常工作，这种原则称之为**里氏替换原则**（The Liskov Substitution Principle，LSP）。LSP并非局限于模板模式，而是通用的继承原则。
+
+---

@@ -55,12 +55,16 @@ public class SingletonMain {
         Triple triple4 = Triple.getInstance(3);
         log.info("triple1 {}", triple1.getNextCount());
         log.info("triple1 {}", triple1.getNextCount());
+        log.info("triple1 {}", triple1.hashCode());
         log.info("triple2 {}", triple2.getNextCount());
         log.info("triple2 {}", triple2.getNextCount());
+        log.info("triple2 {}", triple2.hashCode());
         log.info("triple3 {}", triple3.getNextCount());
         log.info("triple3 {}", triple3.getNextCount());
+        log.info("triple3 {}", triple3.hashCode());
         log.info("triple4 {}", triple4.getNextCount());
         log.info("triple4 {}", triple4.getNextCount());
+        log.info("triple4 {}", triple4.hashCode());
         log.info("triple1 && triple3 {}", Objects.equals(triple1, triple3));
         log.info("triple3 && triple4 {}", Objects.equals(triple4, triple3));
     }

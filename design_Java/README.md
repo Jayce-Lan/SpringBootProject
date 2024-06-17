@@ -585,3 +585,62 @@ ConcreteCreator角色属于具体加工这一方，它负责生成具体的产�
 假如需要相同的框架创造出其他的“产品”和“工厂”。例如创建需要表现电视机类的`Televison`和表示电视机工厂类的`TelevisonFactory`。这时，我们只需要将这两个类放入`televison` 包中，而不修改`framework`中的任何内容就可以创建产品和工厂。
 
 ---
+
+### 单例模式（Singleton）
+
+在程序运行时，通常会生成很多实例。以`java.lang.String` 为例，基本上我们声明一次字符串就会创建一个String实例。
+
+但是有时候我们需要在程序中表示某个东西只存在一个时，就会有单例（只能创建一个实例）的需求。我们可以通过多加注意，保证只调用一次`new Class()` 来实现单例。但是程序修改、维护过程中我们不能每次都通过“稍加注意”来达到单例的目的，此时我们必须满足：
+
+- 确保任何情况下都绝对只有1个实例
+
+- 想在程序上表现出“只存在一个实例”（即，我随时用到这个对象都是它，而不是被new出来的新对象）
+
+像这样确保只生成一个实例的模式被称作**单例（Singleton）模式**。Singleton是指只含有一个元素的集合。
+
+#### 设计模式说明
+
+![Singleton](https://gitee.com/Jayce_Lan/some_img/raw/master/design/singleton.png)
+
+> Singleton
+
+Singleton类只会生成一个实例。Singleton类定义了static字段（类的成员变量）singleton，并将其初始化为Singleton的实例。初始化行为仅在该类被加载时只进行一次。
+
+Singleton类的构造方法是`private` 的，这是为了禁止冲Singleton类外部调用构造函数。如果从Singleton类以外的代码中调用构造函数`new Singleton()`，程序就会编译报错。这也就符合了单例模式要确保在任何情况下只生成一个实例。
+
+```java
+public class Singleton {
+    private final Logger log = LogManager.getLogger(this.getClass().getName());
+    private static Singleton singleton = new Singleton();
+
+    private Singleton() {
+        log.info("生成了一个Singleton实例-{}", this.getClass());
+    }
+
+    public static Singleton getInstance() {
+        return singleton;
+    }
+}
+```
+
+> Main
+
+```java
+private void testSingleton() {
+    Singleton obj1 = Singleton.getInstance();
+    Singleton obj2 = Singleton.getInstance();
+    if (Objects.equals(obj1, obj2)) {
+        log.info("obj1与obj2为同一个对象");
+    } else {
+        log.info("obj1与obj2不为同一个对象");
+    }
+}
+```
+
+在首次调用`Singleton.getInstance()` 方法时，Singleton类会被初始化，也就是这事，static字段的singleton被初始化，生成唯一一个实例。
+
+#### 设计思路
+
+单例模式对实例的数量设置了限制。在一些特定情况下，多个实例之间会互相影响（如初始化变量等），可能会产生意想不到的bug，此时使用单例模式就不需要担心实例之间影响的情况。
+
+---

@@ -439,3 +439,149 @@ AbstractClass角色不仅负责实现模板方法，还负责声明在模板方�
 无论在父类类型的变量中保存哪个子类实例，程序都可以正常工作，这种原则称之为**里氏替换原则**（The Liskov Substitution Principle，LSP）。LSP并非局限于模板模式，而是通用的继承原则。
 
 ---
+
+### 工厂方法模式（Factory Method）
+
+在Template Method模式中，父类规定了处理流程，子类实现具体处理。如果将该模式用于生成实例，它将演变为Factory Method模式。
+
+Factory有“工厂”的意思，用模板模式来构建生成实例的工厂，这就是工厂模式。
+
+在工厂模式中，父类决定实例的生成方式，但并不决定所要生成的具体的类，具体的处理全部交由子类负责。由此可以将生成实例的框架（framework）和实际负责生成实例的类解耦。
+
+#### 设计模式实现
+
+| 包         | 类名            | 说明                                   |
+| --------- | ------------- | ------------------------------------ |
+| framework | Product       | 自定义抽象方法use的抽象类                       |
+| framework | Factory       | 实现了create方法的抽象类                      |
+| idcard    | IDCard        | 实现了use方法的类                           |
+| idcard    | IDCardFactory | 实现了createProduct、registerProduct方法的类 |
+| ——        | Main          | main方法测试类                            |
+
+![工厂模式](https://gitee.com/Jayce_Lan/some_img/raw/master/design/factory-method.png)
+
+> Product
+
+用来表示“产品”的类。仅声明了抽象方法use。use方法的实现则被交给了Product的子类负责，在这个框架中，定义了产品是“任意的可以use”的东西。
+
+```java
+public abstract class Product {
+    public abstract void use();
+}
+```
+
+> Factory
+
+该类其实使用了模板模式，还声明了“生成产品”的`createProduct` 抽象方法和用于“注册产品” 的`registerProduct` 抽象方法。生成和注册具体处理交给了Factory的子类。
+
+在这个框架中，我们定义了工厂是用来调用`create` 方法生成Product实例的。而create方法的实现是先调用createProduct生成产品，接着调用registerProduct注册产品。
+
+具体的实现内容根据Factory Method模式适用的场景而改变。但是，只要是工厂模式，在生成实例时就一定会用到模板模式。
+
+```java
+public abstract class Factory {
+    public final Product create(String owner) {
+        Product product = createProduct(owner);
+        registerProduct(product);
+        return product;
+    }
+
+    protected abstract Product createProduct(String owner);
+    protected abstract void registerProduct(Product product);
+}
+```
+
+> IDCard
+
+```java
+public class IDCard extends Product {
+    private static final Logger log = LogManager.getLogger(IDCard.class);
+    private String owner;
+
+    public IDCard(String owner) {
+        log.info("制作{}的ID卡", owner);
+        this.owner = owner;
+    }
+
+    @Override
+    public void use() {
+        log.info("使用{}的ID卡", this.owner);
+    }
+
+    public String getOwner() {
+        return this.owner;
+    }
+}
+```
+
+> IDCardFactory
+
+```java
+public class IDCardFactory extends Factory {
+    private List<String> owners = new ArrayList<>();
+
+    @Override
+    protected Product createProduct(String owner) {
+        return new IDCard(owner);
+    }
+
+    @Override
+    protected void registerProduct(Product product) {
+        owners.add(((IDCard)product).getOwner());
+    }
+
+    public List<String> getOwners() {
+        return owners;
+    }
+}
+```
+
+
+
+> Main
+
+```java
+public class FactoryMethodMain {
+    private static final Logger log = LogManager.getLogger(FactoryMethodMain.class);
+
+    public static void main(String[] args) {
+        Factory factory = new IDCardFactory();
+        Product card1 = factory.create("小红");
+        Product card2 = factory.create("小明");
+        Product card3 = factory.create("小刚");
+        card1.use();
+        card2.use();
+        card3.use();
+    }
+}
+```
+
+#### 设计模式说明
+
+![Factory Method](https://gitee.com/Jayce_Lan/some_img/raw/master/design/factory-method02.png)
+
+> Product（产品）
+
+Product角色属于框架这一方，是一个抽象类。它定义了在工厂模式中生成的实例所持有的接口（API），但具体的处理则由子类ConcreteProduct角色决定。对应程序中的`Product` 类。
+
+> Creator（创建者）
+
+Creator角色属于框架这一方，他是负责生成Product角色的抽象类，但具体的处理则由子类ConcreteCreator角色决定。对应程序中的`Factory`类。
+
+Creator角色对于实际负责生成实例的ConcreteCreator角色一无所知，只需要调用Product角色和生成实例的方法（对应上图的`factoryMethod`方法），就可以生成Product实例。在程序中，`createProduct` 方法是用于生成实例的方法。**不用new关键字来生成实例，而是调用生成实例的专用方法来生成实例，则由可以防止父类与其他具体类耦合**。
+
+> ConcreteProduct（具体的产品）
+
+ConcreteProduct角色属于具体加工这一方，它决定了具体的产品。对应程序中的`IDCard` 类。
+
+> ConcreteCreator（具体的创建者）
+
+ConcreteCreator角色属于具体加工这一方，它负责生成具体的产品。对应程序中的`IDCardFactory`类。
+
+#### 设计思路
+
+使用工厂模式，我们拥有了“框架”与“具体加工”两个概念，分别对应`frameword`包和`idcard`包。
+
+假如需要相同的框架创造出其他的“产品”和“工厂”。例如创建需要表现电视机类的`Televison`和表示电视机工厂类的`TelevisonFactory`。这时，我们只需要将这两个类放入`televison` 包中，而不修改`framework`中的任何内容就可以创建产品和工厂。
+
+---

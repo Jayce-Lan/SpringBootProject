@@ -536,8 +536,6 @@ public class IDCardFactory extends Factory {
 }
 ```
 
-
-
 > Main
 
 ```java
@@ -642,5 +640,87 @@ private void testSingleton() {
 #### 设计思路
 
 单例模式对实例的数量设置了限制。在一些特定情况下，多个实例之间会互相影响（如初始化变量等），可能会产生意想不到的bug，此时使用单例模式就不需要担心实例之间影响的情况。
+
+#### 防止多线程下单例失效的延伸
+
+Java中解决并发环境下单例模式失效的问题，主要可以通过以下几种方式来实现：
+
+1. **饿汉式（静态初始化）**：
+   饿汉式在类加载时就完成了实例化，因此不存在并发问题。这是最简单也是线程安全的实现方式，但可能会提前占用资源。
+   
+   ```java
+   public class Singleton {
+       private static final Singleton INSTANCE = new Singleton();
+   
+       private Singleton() {}
+   
+       public static Singleton getInstance() {
+           return INSTANCE;
+       }
+   }
+   ```
+
+2. **双重检查锁定（Double-Checked Locking, DCL）**：
+   通过在getInstance方法中增加同步块，只在实例为null时进行同步创建，减少同步开销。但需要注意volatile关键字来防止指令重排序导致的问题。
+   
+   ```java
+   public class Singleton {
+       private volatile static Singleton instance;
+   
+       private Singleton() {}
+   
+       public static Singleton getInstance() {
+           if (instance == null) {
+               synchronized (Singleton.class) {
+                   if (instance == null) {
+                       instance = new Singleton();
+                   }
+               }
+           }
+           return instance;
+       }
+   }
+   ```
+
+3. **静态内部类**：
+   利用Java类加载机制的特性，保证线程安全且延迟加载。
+   
+   ```java
+   public class Singleton {
+       private static class SingletonHolder {
+           private static final Singleton INSTANCE = new Singleton();
+       }
+   
+       private Singleton() {}
+   
+       public static Singleton getInstance() {
+           return SingletonHolder.INSTANCE;
+       }
+   }
+   ```
+
+4. **枚举**：
+   Java枚举类型天然线程安全，并且可以防止反射和序列化攻击。
+   
+   ```java
+   public enum Singleton {
+       INSTANCE;
+   
+       // 可以在这里添加业务方法
+   }
+   ```
+
+5. **使用容器（如Spring IoC容器）管理**：
+   在使用Spring框架等IoC容器时，可以让容器来管理单例，从而避免直接处理并发问题。
+
+对于序列化破坏单例的问题，可以在单例类中添加以下方法来控制反序列化过程，确保单例特性不被破坏：
+
+```java
+private Object readResolve() {
+    return getInstance();
+}
+```
+
+这段代码应该放在单例类中，标记为`private`，这样在反序列化时会调用这个方法而不是创建新的实例。这适用于实现了`Serializable`接口的单例类。
 
 ---

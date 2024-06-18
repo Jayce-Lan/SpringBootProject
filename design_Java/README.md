@@ -771,11 +771,11 @@ public interface Product extends Cloneable {
 ```java
 public class Manager {
     private Map<String, Product> showcase = new HashMap<>();
-    
+
     public void register(String name, Product product) {
         showcase.put(name, product);
     }
-    
+
     public Product create(String name) {
         Product product = showcase.get(name);
         return product.createClone();
@@ -785,7 +785,7 @@ public class Manager {
 
 > MessageBox
 
-其实可以将Product接口改为抽象类，毕竟`createClone` 方法的实现都相同。
+
 
 ```java
 public class MessageBox implements Product {

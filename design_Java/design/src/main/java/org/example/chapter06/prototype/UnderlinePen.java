@@ -2,11 +2,12 @@ package org.example.chapter06.prototype;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.example.chapter06.prototype.framework.AbstractProduct;
 import org.example.chapter06.prototype.framework.Product;
 
 import java.nio.charset.StandardCharsets;
 
-public class UnderlinePen implements Product {
+public class UnderlinePen extends AbstractProduct {
     private final Logger log = LogManager.getLogger(this.getClass().getName());
     private char ulchar;
 
@@ -23,16 +24,5 @@ public class UnderlinePen implements Product {
             foot.append(ulchar);
         }
         log.info(foot.toString());
-    }
-
-    @Override
-    public Product createClone() {
-        Product product = null;
-        try {
-            product = (Product) clone();
-        } catch (CloneNotSupportedException e) {
-            log.error(e.getMessage());
-        }
-        return product;
     }
 }

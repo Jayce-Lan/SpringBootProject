@@ -724,3 +724,174 @@ private Object readResolve() {
 这段代码应该放在单例类中，标记为`private`，这样在反序列化时会调用这个方法而不是创建新的实例。这适用于实现了`Serializable`接口的单例类。
 
 ---
+
+### 原型模式（Prototype）
+
+在Java中，可以使用new关键字指定类名生成类的实例。但是在开发过程中有时候会在“不指定类名的前提下生成实例”，情况如下：
+
+- 对象种类繁多，无法将它们整合到一个类中
+
+- 难以根据类生成实例
+
+- 想解耦框架与生成的实例关系
+
+**Prototype模式**，有原型、模型的意思，在设计模式中是指根据实例原型、实例模型生成新的实例。在Java语言中，可以使用`clone` 创建出实例的副本。原型模式中将要学习`clone` 方法和`Cloneable`接口的使用方法。
+
+#### 设计模式实现
+
+| 包         | 类名           | 说明                                              |
+| --------- | ------------ | ----------------------------------------------- |
+| framework | Product      | 声明了抽象方法`use`和`createClone`的接口                   |
+| framework | Manager      | 调用`createClone`方法复制实例的类                         |
+| 无名        | MessageBox   | 将字符串放入方框中并使其显示出来的类。实现了`use`方法和 `createClone`方法  |
+| 无名        | UnderlinePen | 给字符串加上上下划线并使其显示出来的类。实现了`use`方法和 `createClone`方法 |
+| 无名        | Main         | 测试程序行为的类                                        |
+
+![prototype](https://gitee.com/Jayce_Lan/some_img/raw/master/design/prototype.png)
+
+> Product
+
+`use`方法是用于“使用”的方法，具体如何使用交由子类
+
+`createClone`方法是用于复制实例的方法
+
+```java
+public interface Product extends Cloneable {
+    void use(String str);
+    Product createClone();
+}
+```
+
+> Manager
+
+`register`方法将会接收到一组map，key为Product的名字、value为Product接口，并且注册到showcase中。
+
+在Manager类中并没有写明具体的类名，仅使用了Product接口名，因为**一旦在类中使用到了别的类名，就意味着该类与其他类紧密耦合**，而此处Product接口成为了连接Manager类与其他具体类的桥梁。
+
+```java
+public class Manager {
+    private Map<String, Product> showcase = new HashMap<>();
+    
+    public void register(String name, Product product) {
+        showcase.put(name, product);
+    }
+    
+    public Product create(String name) {
+        Product product = showcase.get(name);
+        return product.createClone();
+    }
+}
+```
+
+> MessageBox
+
+其实可以将Product接口改为抽象类，毕竟`createClone` 方法的实现都相同。
+
+```java
+public class MessageBox implements Product {
+    private final Logger log = LogManager.getLogger(this.getClass().getName());
+    private char decochar;
+
+    public MessageBox(char decochar) {
+        this.decochar = decochar;
+    }
+
+    @Override
+    public void use(String str) {
+        int length = str.getBytes(StandardCharsets.UTF_8).length;
+        String head = "";
+        for (int i = 0; i < length + 4; i++) {
+            head += decochar;
+        }
+        log.info(head);
+        log.info(decochar + " " + str + " " + decochar);
+        log.info(head);
+    }
+
+    @Override
+    public Product createClone() {
+        Product product = null;
+        try {
+            product = (Product) clone();
+        } catch (CloneNotSupportedException e) {
+            log.error(e.getMessage());
+        }
+        return product;
+    }
+}
+```
+
+> UnderlinePen
+
+```java
+public class UnderlinePen implements Product {
+    private final Logger log = LogManager.getLogger(this.getClass().getName());
+    private char ulchar;
+
+    public UnderlinePen(char ulchar) {
+        this.ulchar = ulchar;
+    }
+
+    @Override
+    public void use(String str) {
+        int length = str.getBytes(StandardCharsets.UTF_8).length;
+        log.info("\"" + str + "\"");
+        StringBuilder foot = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            foot.append(ulchar);
+        }
+        log.info(foot.toString());
+    }
+
+    @Override
+    public Product createClone() {
+        Product product = null;
+        try {
+            product = (Product) clone();
+        } catch (CloneNotSupportedException e) {
+            log.error(e.getMessage());
+        }
+        return product;
+    }
+}
+```
+
+> Main
+
+```java
+public static void main(String[] args) {
+    // 准备
+    Manager manager = new Manager();
+    UnderlinePen underlinePen = new UnderlinePen('~');
+    MessageBox messageBox = new MessageBox('*');
+    MessageBox messageBox2 = new MessageBox('/');
+    manager.register("underlinePen", underlinePen);
+    manager.register("messageBox", messageBox);
+    manager.register("messageBox2", messageBox2);
+    // 生成
+    Product product1 = manager.create("underlinePen");
+    product1.use("Hello, World!");
+    Product product2 = manager.create("messageBox");
+    product2.use("Hello, World!");
+    Product product3 = manager.create("messageBox2");
+    product3.use("Hello, World!");
+}
+```
+
+#### 设计模式说明
+
+![prototype](https://gitee.com/Jayce_Lan/some_img/raw/master/design/prototype02.png)
+
+> Prototype（原型）
+
+Product角色负责定义用于复制现有实例生成新实例的方法。对应的是程序中的`Product` 接口。
+
+> ConcretePrototype（具体的原型）
+
+ConcretePrototype角色负责实现复制现有实例并生成新实例的方法。对应的是程序中的`MessageBox` 和`UnderlinePen`。
+
+> Client（使用者）
+
+Client角色负责使用复制的方法生成新的实例。对应的是程序中的`Manager` 。
+
+---

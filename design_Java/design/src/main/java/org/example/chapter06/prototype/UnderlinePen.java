@@ -3,7 +3,6 @@ package org.example.chapter06.prototype;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.chapter06.prototype.framework.AbstractProduct;
-import org.example.chapter06.prototype.framework.Product;
 
 import java.nio.charset.StandardCharsets;
 

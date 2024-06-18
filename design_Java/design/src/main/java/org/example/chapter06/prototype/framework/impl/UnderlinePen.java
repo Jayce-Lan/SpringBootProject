@@ -1,4 +1,4 @@
-package org.example.chapter06.prototype;
+package org.example.chapter06.prototype.framework.impl;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

@@ -4,6 +4,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.chapter06.prototype.framework.Manager;
 import org.example.chapter06.prototype.framework.Product;
+import org.example.chapter06.prototype.framework.impl.MessageBox;
+import org.example.chapter06.prototype.framework.impl.UnderlinePen;
 
 public class PrototypeMain {
     private final Logger log = LogManager.getLogger(this.getClass().getName());

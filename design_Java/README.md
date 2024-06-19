@@ -785,8 +785,6 @@ public class Manager {
 
 > MessageBox
 
-
-
 ```java
 public class MessageBox implements Product {
     private final Logger log = LogManager.getLogger(this.getClass().getName());
@@ -893,5 +891,141 @@ ConcretePrototype角色负责实现复制现有实例并生成新实例的方法
 > Client（使用者）
 
 Client角色负责使用复制的方法生成新的实例。对应的是程序中的`Manager` 。
+
+---
+
+### 建造者模式（Builder）
+
+通常，在建造具有复杂结构的物体时，需要先建造组成这个物体的各个部分，然后分阶段将它们组装起来。这种用于组装具有复杂结构的实例的模式，就叫做建造者模式。
+
+#### 设计模式实现
+
+| 类名          | 说明               |
+| ----------- | ---------------- |
+| Builder     | 定义了决定文档结构的方法的抽象类 |
+| Director    | 编写一个文档的类         |
+| TextBuilder | 使用纯文本编写文档的类      |
+| HTMLBuilder | 使用HTML编写文档的类     |
+| Main        | 测试程序行为的类         |
+
+![Builder](https://gitee.com/Jayce_Lan/some_img/raw/master/design/builder.png)
+
+> Builder
+
+```java
+public interface Builder {
+    void makeTitle(String title);
+    void makeString(String str);
+    void makeItems(String[] items);
+    void close();
+}
+```
+
+> Director
+
+`TextBuilder`和`HTMLBuilder`都是`Builder`的子类（实现类），因此Director只需要Builder的方法即可完成，**Director并不关心实际编写文档的到底是哪一个具体的子类（实现类）**。
+
+正因如此，必须在Builder中声明足够多的方法以实现某一功能，但不包括子类（实现类）的特有方法。
+
+```java
+public class Director {
+    private Builder builder;
+
+    public Director(Builder builder) {
+        this.builder = builder;
+    }
+
+    /**
+     * 编写文档的实现方法
+     */
+    public void construct() {
+        builder.makeTitle("Greeting");
+        builder.makeString("早上与下午");
+        builder.makeItems(new String[] {
+                "早上好",
+                "下午好"
+        });
+        builder.makeString("晚上");
+        builder.makeItems(new String[]{
+                "晚上好",
+                "goodnight！",
+                "goodbye!"
+        });
+        builder.close();
+    }
+}
+```
+
+> TextBuilder
+
+```java
+public class TextBuilder implements Builder {
+    private StringBuffer buffer = new StringBuffer();
+
+    @Override
+    public void makeTitle(String title) {
+        buffer.append("================================\n");
+        buffer.append("[" + title + "]\n");
+        buffer.append("\n");
+    }
+
+    @Override
+    public void makeString(String str) {
+        buffer.append("- " + str + "\n");
+    }
+
+    @Override
+    public void makeItems(String[] items) {
+        for (String item : items) {
+            buffer.append(" -" + item + "\n");
+        }
+        buffer.append("\n");
+    }
+
+    @Override
+    public void close() {
+        buffer.append("================================\n");
+    }
+
+    public String getResult() {
+        return this.buffer.toString();
+    }
+}
+```
+
+> Main
+
+```java
+private void testTextBuilder() {
+    TextBuilder textBuilder = new TextBuilder();
+    Director director = new Director(textBuilder);
+    director.construct();
+    log.info("result >>>>> {}", textBuilder.getResult());
+}
+```
+
+#### 设计模式说明
+
+![builder](https://gitee.com/Jayce_Lan/some_img/raw/master/design/builder02.png)
+
+> Builder（建造者）
+
+Builder角色负责定义用于生成实例的接口，准备了用于生成实例的方法。
+
+> ConcreteBuilder（具体建造者）
+
+ConcreteBuilder负责实现Builder的接口，这里定义了生成实例时被调用的方法。此外，在ConcreteBuilder角色中还定义了获取最终生成结果的方法`getResult`。对应程序中的`TextBuilder` 和`HTMLBuilder`。
+
+> Director（监工）
+
+Director角色负责使用Builder角色的接口来生成实例，它不依赖ConcreteBuilder角色。为了确保无论ConcreteBuilder是如何被定义的，Director都能正常工作，它**只调用在Builder角色中被定义的方法**。
+
+> Client（使用者）
+
+该角色使用了Builder模式，对应程序中的`Main`。
+
+##### Builder模式时序图
+
+![builder](https://gitee.com/Jayce_Lan/some_img/raw/master/design/builder03.png)
 
 ---

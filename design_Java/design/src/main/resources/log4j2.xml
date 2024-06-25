@@ -3,13 +3,17 @@
     <Appenders>
         <!-- 控制台Appender -->
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n"/>
+<!--            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%-5p] %c{1}:%L - %m%n"/>-->
+            <!-- %c{4}: 只展示日志打印所在类的4级包名，包括类自己 -->
+            <!-- %logger{4}: 只展示日志打印所在类的4级包名，包括类自己 -->
+<!--            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %c{4}:%L - %highlight{%-5level}: %msg%n"/>-->
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} - %highlight{%-5level}- [%t] %logger{4}:%L: %msg%n"/>
         </Console>
 
         <!-- 文件Appender 日志文件输出目录 -->
         <File name="LogFile" fileName="/Users/lanjiesi/Documents/MyProject/Java/SpringBootProject/design_Java/design/logfile.log">
             <PatternLayout>
-                <Pattern>%d{yyyy-MM-dd HH:mm-dd} %-5p %c{1}:%L - %m%n</Pattern>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %logger{36} - %highlight{%-5level}: %msg%n</Pattern>
             </PatternLayout>
         </File>
     </Appenders>

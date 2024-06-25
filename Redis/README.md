@@ -188,4 +188,236 @@ select avg(age) from user # 快
 
 ---
 
+## Redis特点
+
+- Redis是一个**开源的key-value存储系统**
+
+- 和`Memcached`类似，它支持存储的value类型相对更多，包括`string`（字符串）、`list`（链表）、`set`（集合）、`zset`（sorted set 有序集合）和`hash`（哈希类型）
+
+- 这些数据类型都支持`push/pop`、`add/remove`及取交集、并集和差集及丰富的操作，而且这些操作都是**原子性**的
+
+- 在此基础上，Redis支持各种不同方式的排序
+
+- 与Memcached一样，为了保证效率，数据都是**缓存在内存中**
+
+- 区别是Redis会**周期性的把更新的数据写入磁盘**或者把修改操作写入追加的记录文件
+
+- 在此基础上，Redis实现了`master-slave`（主从）同步
+
+### Redis使用场景
+
+> 配合关系型数据库做高速缓存
+
+- 高频次、热门访问的数据，降低数据库IO
+
+- 分布式架构，做session共享
+
+> 多样的数据结构存储持久化数据
+
+- 最新N个数据  <===  通过`list`实现按自然时间排序的数据
+
+- 排行榜、TopN <=== 利用`zset`有序集合
+
+- 时效性的数据，比如手机验证码  <=== Expire过期
+
+- 计数器、秒杀 <=== 原子性，自增方法`INCR`/`DECR`
+
+- 去除大量数据中的重复数据 <=== 使用`set`集合
+
+- 构建队列 <=== 利用`list`集合
+
+- 发布订阅消息模式 <=== `pub/sub`模式
+
+### Redis相关知识
+
+- 默认16个数据库，类似数组下标从0开始，初始**默认使用0号数据库**
+
+- 使用命令 `select dbid` 进行切换数据库，如：`select 3`
+
+- 统一密码管理，所有库同一个密码
+
+- `dbsize`查看当前数据库key 的数量
+
+- `flushdb`清空当前库
+
+- `flushall`清空全部库
+
+> Redis是单线程+多路IO重复技术
+
+多路复用是指使用一个线程来检查多个文件描述符（Socket）的就绪状态。比如调用`select`和`poll`函数，传入多个文件描述符，如果有一个文件描述符就绪，则返回；否则阻塞直到超时。得到就绪状态后进行真正的操作可以在同一个线程里执行，也可以启动线程执行（比如使用线程池）。
+
+---
+
 ## 常用五大数据类型
+
+- 字符串string
+
+- 列表list
+
+- 集合set
+
+- 哈希hash
+
+- 有序集合zset
+
+### Redis键（key）
+
+> 常用命令
+
+```shell
+# 查看当前库所有key
+keys *
+# 其实*表达代表多个字符串，我们可以使用 keys k*或者keys *1进行模糊查询
+keys k*
+# 判断某个key是否存在
+exists keyName
+# 查看key存储字段类型
+type keyName
+# 删除指定key的数据
+del keyName
+# 根据value选择非阻塞删除，仅将key从keyspace元数据中删除，真正删除会在后续异步操作
+unlink keyName
+# 给key设置过期时间，此处为10秒
+expire keyName 10
+# 查看还有多少秒过期，-1表示永不过期，-2表示已经过期(或不存在)
+ttl keyName
+# 切换数据库
+select dbIndex
+# 清空当前选择的数据库
+flushdb
+# 清空所有数据库
+flushll
+```
+
+### 字符串（String）
+
+#### 简介
+
+string是Redis最基本的类型，可以理解为Memcached一模一样的类型，一个key对应一个value。
+
+string类型是**二进制安全的**。意味着Redis的string可以包含任何数据，比如jpg图片、序列化的对象。
+
+string类型是Redis最基本的数据类型，一个Redis字符串value诸多可以是`512M`。
+
+#### 常用命令
+
+> set <key> <value> 
+
+添加键值对
+
+```shell
+set key value [EX seconds|PX milliseconds|KEEPTTL] [NX|XX]
+127.0.0.1:6379[3]> set k1 v100
+OK
+127.0.0.1:6379[3]> set k1 v200 NX
+(nil)
+```
+
+`EX` key的超时秒数（默认）
+
+`PX`key的超时毫秒数，与EX互斥
+
+`NX` 当数据库中key不存在时，可以将`key-value`添加数据库
+
+`XX` 当数据库中key存在时，可以将`key-value`添加数据库，与NX参数互斥（默认）
+
+> get <key> 
+
+查询对应键的值
+
+```shell
+get key
+127.0.0.1:6379[3]> get k1
+"v1100"
+```
+
+> append <key> <value>
+
+将给定的value追加到原值末尾，返回值为最后值的长度
+
+```shell
+append key value
+127.0.0.1:6379[3]> get k1
+"v1100"
+127.0.0.1:6379[3]> append k1 v900
+(integer) 9
+127.0.0.1:6379[3]> get k1
+"v1100v900"
+```
+
+> strlen <key> 
+
+获取键对应值的长度，不存在时返回0
+
+```shell
+strlen key
+127.0.0.1:6379[3]> strlen k1
+(integer) 9
+```
+
+> setnx <key> <value>
+
+当key不存在时设置key值
+
+该方法其实与`set key value nx` 一致。当插入成功时返回1，失败返回0
+
+```shell
+setnx key value
+127.0.0.1:6379[3]> setnx k3 jack
+(integer) 1
+127.0.0.1:6379[3]> setnx k1 jack
+(integer) 0
+```
+
+> incr <key>
+
+将key中存储的数字值增1；只能对数字值操作，如果为空，新增值并且为1
+
+```shell
+incr key
+127.0.0.1:6379[3]> incr k2
+(error) ERR value is not an integer or out of range
+127.0.0.1:6379[3]> incr k4
+(integer) 1
+127.0.0.1:6379[3]> incr k4
+(integer) 2
+127.0.0.1:6379[3]> incr k4
+(integer) 3
+```
+
+> decr <key>
+
+将key中存储的数字值-1；只能对数字值操作，如果为空，新增值并且为-1
+
+```shell
+decr key
+127.0.0.1:6379[3]> decr k2
+(error) ERR value is not an integer or out of range
+127.0.0.1:6379[3]> decr k5
+(integer) -1
+127.0.0.1:6379[3]> decr k5
+(integer) -2
+127.0.0.1:6379[3]> decr k4
+(integer) 2
+127.0.0.1:6379[3]> decr k4
+(integer) 1
+```
+
+> incrby / decrby <key> <num>
+
+将key中存储的数字值按照自己定义的num进行增减，当key不存在时，incrby命令会创建一个值为num的键值对；decrby命令会创建一个值为-num的键值对。
+
+```shell
+127.0.0.1:6379[3]> incrby k4 3
+(integer) 4
+127.0.0.1:6379[3]> incrby k4 3
+(integer) 7
+127.0.0.1:6379[3]> decrby k4 2
+(integer) 5
+127.0.0.1:6379[3]> decrby k4 2
+(integer) 3
+127.0.0.1:6379[3]> incrby k6 8
+(integer) 8
+127.0.0.1:6379[3]> decrby k7 8
+(integer) -8
+```

@@ -689,3 +689,196 @@ list的数据结构为快速链表`quickList`
 Redis将链表和`ziplist`结合起来组成了`quicklist`。也就是将多个ziplist使用双向指针穿起来使用，这样既满足了快速的插入删除性能，又不会出现太大的空间冗余。
 
 ---
+
+### 集合（set）
+
+#### 简介
+
+Redis set对外提供的功能与list类似，是一个列表的功能，特殊之处在于set是可以**自动去重**的，但需要存储一个列表数据，又不希望出现重复数据时，set是一个很好的选择，并且set提供了判断某个成员是否在一个set集合内的总要接口，这个也是list说不能提供的。
+
+Redis的set是string的**无序集合**。**它的底层是一个value为null的hash表**，所以添加、删除、查找的**复杂度都是O<sub>(1)</sub>**。
+
+一个算法，随着数据的增加，执行时间的长短会根据复杂度增减；如果是O<sub>(1)</sub>，数据增加，查找数据的时间不变。
+
+#### 常用命令
+
+> sadd key member [member]
+
+将一个或多个member加入集合key中，已经存在的将被忽略。返回添加成功member的个数
+
+```shell
+[db3] > sadd s1 v1 v2 v3 v4 v2
+(integer) 4
+[db3] > sadd s1 v5
+(integer) 1
+```
+
+> smembers key
+
+获取该集合所有的值
+
+```shell
+[db3] > smembers s1
+1) "v1"
+2) "v2"
+3) "v3"
+4) "v4"
+5) "v5"
+```
+
+> sismember key member
+
+判断key中是否存在member，存在返回1；不存在返回0
+
+```shell
+[db3] > SISMEMBER s1 v4
+(integer) 1
+
+[db3] > SISMEMBER s1 v6
+(integer) 0
+```
+
+> scard key
+
+返回该集合的元素个数
+
+```shell
+[db3] > scard s1
+(integer) 5
+```
+
+> srem key member [member]
+
+删除集合中的某个指定元素。当元素不存在时，不做删除；返回删除成功个数。与list一样，**值在键在，值空键亡**。
+
+```shell
+[db3] > srem s1 v1 v6
+(integer) 1
+
+[db3] > srem s1 v2 v3
+(integer) 2
+```
+
+> spop key [count]
+
+从key集合中**随机删除**count个元素，count不录入时默认为1，返回被删除元素。
+
+```shell
+[db3] > sadd s1 v1 v2 v3 v4 v5 v6
+(integer) 6
+[db3] > spop s1 3
+1) "v2"
+2) "v3"
+3) "v5"
+[db3] > spop s1
+"v6"
+```
+
+> srandmember key [count]
+
+从集合中随机获取count个值，count不指定时默认为1；不会删除集合元素。
+
+```shell
+[db3] > srandmember s1 3
+1) "v4"
+2) "v5"
+3) "v6"
+[db3] > srandmember s1 3
+1) "v1"
+2) "v2"
+3) "v6"
+[db3] > srandmember s1
+"v1"
+```
+
+> smove source destination member
+
+将source集合的member元素从source移动到destination当中，成功返回1，失败返回0。
+
+```shell
+[db3] > smembers s1
+1) "v1"
+2) "v2"
+3) "v3"
+4) "v4"
+5) "v5"
+6) "v6"
+[db3] > smembers s2
+1) "vv1"
+2) "vv2"
+3) "vv3"
+4) "vv4"
+5) "vv5"
+
+[db3] > smove s1 s2 v1
+(integer) 1
+
+[db3] > smembers s1
+1) "v2"
+2) "v3"
+3) "v4"
+4) "v5"
+5) "v6"
+[db3] > smembers s2
+1) "vv1"
+2) "vv2"
+3) "vv3"
+4) "vv4"
+5) "vv5"
+6) "v1"
+
+[db3] > smove s1 s2 v1
+(integer) 0
+```
+
+> sinter key [key]
+
+返回多个集合中的交集元素
+
+```shell
+[db3] > sadd s1 v1 v2 v3 v4
+(integer) 4
+
+[db3] > sadd s2 v1 v2 v5 v6
+(integer) 4
+
+[db3] > sinter s1 s2
+1) "v1"
+2) "v2"
+```
+
+> sunion key [key]
+
+返回多个集合中的并集元素
+
+```shell
+[db3] > sunion s1 s2
+1) "v1"
+2) "v2"
+3) "v3"
+4) "v4"
+5) "v5"
+6) "v6"
+```
+
+> sdiff key [key]
+
+返回多个集合的差集，只展示首个key中所含的差集元素
+
+```shell
+[db3] > sdiff s1 s2
+1) "v3"
+2) "v4"
+
+[db3] > sdiff s2 s1
+1) "v5"
+2) "v6"
+```
+
+#### 数据结构
+
+set数据结构是`dict`字典，字典是用hash表实现的。
+
+Java中`HashSer`的内部实现使用的是`HashMap`，只不过所有的value都指向同一个对象。Redis的set结构也是一样，它的内部也使用hash结构，所有的value都指向同一个内部值。
+
+---

@@ -510,3 +510,182 @@ string的数据结构为简单动态字符串（Simple Dynamic String，即SDS�
 如图所示，内部为当前字符串实际分配的空间`capacity`一般要高于实际字符串长度`length`。当字符串长度小于1M是，扩容都是加倍现有的空间，如果超过1M，扩容时一次只会扩1M的空间。字符串最大长度为512M。
 
 ---
+
+### 列表（List）
+
+#### 简介
+
+单键多值。
+
+Redis列表是简单的字符串列表，按照插入顺序排序，可以添加一个元素到列表的头部（左侧）或者尾部（右侧）。
+
+它的底层实际是个**双向链表**，对两段的操作性能很高，通过索引下标的操作，中间的节点性能可能会较差（查询效率低）。
+
+![redis list](https://gitee.com/Jayce_Lan/some_img/raw/master/RedisLearnImg/redis4-list.png)
+
+#### 常用命令
+
+> lpush/rpush key element [element]
+
+从左边/右边插入一个或多个值，返回列表的长度
+
+```shell
+[db3] > lpush l1 a
+(integer) 1
+[db3] > rpush l1 b c d
+(integer) 4
+[db3] > lpush l1 e f
+(integer) 6
+```
+
+最终列表结构
+
+| 0   | 1   | 2   | 3   | 4   | 5   |
+| --- | --- | --- | --- | --- | --- |
+| f   | e   | a   | b   | c   | d   |
+
+> lpop/rpop key [count]
+
+从左边/右边删除count个值，不指定count则默认为1；返回被删除的值。**值在键在，值光键亡**。
+
+```shell
+[db3] > lpop l1 
+"f"
+[db3] > rpop l1 2
+1) "d"
+2) "c"
+[db3] > lrange l1 0 -1
+1) "e"
+2) "a"
+3) "b"
+```
+
+> rpoplpush key1 key2
+
+从key1列表右边删除一个值，并将被删除的值插入到key2列表左边
+
+```shell
+[db3] > rpoplpush l1 l2
+"v3"
+```
+
+> lrange key start end
+
+按照索引下标获得元素（从左到右），end为-1时，表示取所有的值
+
+```shell
+[db3] > lrange l1 0 -1
+1) "f"
+2) "e"
+3) "a"
+4) "b"
+5) "c"
+6) "d"
+[db3] > lrange l1 0 3
+1) "f"
+2) "e"
+3) "a"
+4) "b"
+```
+
+> lindex key index
+
+根据索引下标index获取key的元素（从左到右）
+
+```shell
+[db3] > lindex l1 1
+"v2"
+```
+
+> llen key
+
+获取list长度
+
+```shell
+[db3] > llen l1
+(integer) 2
+```
+
+> linsert key before|after value newValue
+
+在value 前|后 面插入newValue，方法返回插入后的数组长度
+
+```shell
+[db3] > LINSERT l1 before v2 v2.5
+(integer) 4
+[db3] > lrange l1 0 -1
+1) "v1"
+2) "v2.5"
+3) "v2"
+4) "v3"
+[db3] > LINSERT l1 after v2 v2.6
+(integer) 5
+[db3] > lrange l1 0 -1
+1) "v1"
+2) "v2.5"
+3) "v2"
+4) "v2.6"
+5) "v3"
+```
+
+> lrem key count element
+
+从左边起，删除count个element，返回删除个数。如果没有匹配则返回0
+
+```shell
+[db3] > lrange l1 0 -1
+1) "v1"
+2) "v2"
+3) "v2"
+4) "v2"
+5) "v2.5"
+6) "v2.6"
+7) "v3"
+[db3] > lrem l1 2 v2
+(integer) 2
+[db3] > lrange l1 0 -1
+1) "v1"
+2) "v2"
+3) "v2.5"
+4) "v2.6"
+5) "v3"
+```
+
+> lset key index element
+
+将key对应的数组下标index替换为element
+
+```shell
+[db3] > lrange l1 0 -1
+1) "v1"
+2) "v2"
+3) "v2.5"
+4) "v2.6"
+5) "v3"
+[db3] > lset l1 2 v2.4
+"OK"
+[db3] > lrange l1 0 -1
+1) "v1"
+2) "v2"
+3) "v2.4"
+4) "v2.6"
+5) "v3"
+```
+
+#### 数据结构
+
+list的数据结构为快速链表`quickList`
+
+首先在列表元素较少的情况下会使用一块连续的内存存储，这个结构是`ziplist`，即压缩列表。
+
+它将所有的元素紧挨着一起存储，分配的是一块连续的内存。
+
+当数据量比较多时会改成`quicklist`。
+
+因为普通的链表的附加指针空间太大，会比较浪费空间。比如列表里存储的只是int类型的数据，结构上还需要两个额外的指针prev和next。
+
+`ziplist` <==>`ziplist`<==>`ziplist`
+
+Redis将链表和`ziplist`结合起来组成了`quicklist`。也就是将多个ziplist使用双向指针穿起来使用，这样既满足了快速的插入删除性能，又不会出现太大的空间冗余。
+
+---

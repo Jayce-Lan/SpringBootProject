@@ -371,7 +371,7 @@ setnx key value
 
 > incr <key>
 
-将key中存储的数字值增1；只能对数字值操作，如果为空，新增值并且为1
+将key中存储的数字值增1；只能对数字值操作，如果为空，新增值并且为1。**这个操作是遵循原子性的**，即，操作一旦开始就一直运行到结束，中间不会有任何`context switch`（切换到另一个线程）。
 
 ```shell
 incr key
@@ -421,3 +421,92 @@ decr key
 127.0.0.1:6379[3]> decrby k7 8
 (integer) -8
 ```
+
+> mset <key> <value> [<key> <value>]
+
+同时设置多个key-value对
+
+```shell
+127.0.0.1:6379[3]> mset mk1 mk111 mk2 mk222 mk3 mk333
+OK
+```
+
+> mget <key> [<key>]
+
+同时获取多个key的值，并且按照get的顺序进行输出
+
+```shell
+127.0.0.1:6379[3]> mget mk1 mk3 mk2
+1) "mk111"
+2) "mk333"
+3) "mk222"
+```
+
+> msetnx <key> <value> [<key> <value>]
+
+同时设置一个或多个key-value对，当且仅当所有给定的key都不存在时。**该操作遵循原子性，一个失败则全部失败**。成功返回1，失败返回0。
+
+```shell
+127.0.0.1:6379[3]> msetnx mk4 mk444 mk5 mk555
+(integer) 1
+127.0.0.1:6379[3]> msetnx mk6 mk444 mk7 mk777 mk5 mk555
+(integer) 0
+```
+
+> getrange <key> <startIndex> <endIndex> 
+
+获得值的范围，类似Java中的`substring`，取值范围`[startIndex, endIndex]`。
+
+```shell
+[db3] > get mk4
+"mk444"
+[db3] > getrange mk4 1 3
+"k44"
+[db3] > GETRANGE mk4 0 100
+"mk444"
+[db3] > GETRANGE mk4 30 100
+""
+```
+
+> setrange <key> <startInex> <value>
+
+用value覆写key所存储的字符串值，从startIndex开始。
+
+```shell
+[db3] > get mk4
+"mk444"
+[db3] > setrange mk4 3 abc
+(integer) 6
+[db3] > get mk4
+"mk4abc"
+```
+
+> setxt <key> <timeout> <value>
+
+设置键值的同时设置过期时间，单位秒
+
+```shell
+[db3] > setex mk6 10 v6
+"OK"
+```
+
+> getset <key> <value>
+
+以新换旧，设置新值同时获得旧的值
+
+```shell
+[db3] > getset mk5 v5
+"mk555"
+[db3] > get mk5
+"v5"
+```
+
+#### 数据结构
+
+string的数据结构为简单动态字符串（Simple Dynamic String，即SDS）。是可以修改的字符串，内部结构实现上类似于Java的ArrayList，采用预分配冗余空间的方式来减少内存的频繁分配。
+
+![redis string](https://gitee.com/Jayce_Lan/some_img/raw/master/RedisLearnImg/redis3-string.png)
+
+如图所示，内部为当前字符串实际分配的空间`capacity`一般要高于实际字符串长度`length`。当字符串长度小于1M是，扩容都是加倍现有的空间，如果超过1M，扩容时一次只会扩1M的空间。字符串最大长度为512M。
+
+---

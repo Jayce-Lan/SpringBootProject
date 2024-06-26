@@ -690,7 +690,7 @@ Redis将链表和`ziplist`结合起来组成了`quicklist`。也就是将多个z
 
 ---
 
-### 集合（set）
+### 集合（Set）
 
 #### 简介
 
@@ -880,5 +880,120 @@ Redis的set是string的**无序集合**。**它的底层是一个value为null的
 set数据结构是`dict`字典，字典是用hash表实现的。
 
 Java中`HashSer`的内部实现使用的是`HashMap`，只不过所有的value都指向同一个对象。Redis的set结构也是一样，它的内部也使用hash结构，所有的value都指向同一个内部值。
+
+---
+
+### 哈希（Hash）
+
+#### 简介
+
+Redis hash是一个键值对集合。
+
+Redis hash是一个string类型的`field`和`value`的映射表，hash特别适用于存储对象。类似Java中的`Map<String, Object>`。
+
+![redis hash](https://gitee.com/Jayce_Lan/some_img/raw/master/RedisLearnImg/redis5-hash.png)
+
+用户ID为查找的key，存储的value包括用户的姓名、年龄、生日等信息，如果用普通的key-value结构存储可能会造成数据冗余。
+
+> hash与string的存储对比
+
+![redis hash and string](https://gitee.com/Jayce_Lan/some_img/raw/master/RedisLearnImg/redis6-hash.png)
+
+还有一种形式是**序列化对象**，然后以key-value形式存入string中。但是如果对象是经常需要修改某个属性的情况下，需要先方序列化对象，修改后再序列化存储，会造成较大的资源开销。
+
+相比之下，hash存储不会那么冗余，读取也更方便。
+
+#### 常用命令
+
+> hset key field value [field value]
+
+给key对象hash中进行赋值，相当于声明属性，可以声明多个；其中field为属性名，value为属性值，返回添加成功属性个数。
+
+```shell
+[db3] > hset user001 name Tony
+(integer) 1
+
+[db3] > hset user001 age 20 tel 130xxxx bir 0626
+(integer) 3
+```
+
+> hget key field
+
+取出hash中的field属性值
+
+```shell
+[db3] > hget user001 name
+"Tony"
+```
+
+> hmset key fild value [field value]
+
+批量设置hash的属性与值，其实与hset类似；但是插入成功时返回OK，而不是具体数量
+
+```shell
+[db3] > hmset user002 name Jack age 30 tel 140xxxx bir 1213
+"OK"
+```
+
+> hexists key field
+
+查看对应key的hash中给定的field是否存在，存在返回1，不存在返回0
+
+```shell
+[db3] > hexists user001 name
+(integer) 1
+
+[db3] > hexists user001 job
+(integer) 0
+```
+
+> hkeys key / hvals key
+
+列出对应key的hash的field/value
+
+```shell
+[db3] > hkeys user001
+1) "name"
+2) "age"
+3) "tel"
+4) "bir"
+
+[db3] > hvals user001
+1) "Tony"
+2) "20"
+3) "130xxxx"
+4) "0626"
+```
+
+> hincrby key field increment
+
+为对应key的hash中的field属性增加increment个值，1为+1、-1为-1，以此类推；返回增加/减小后的结果
+
+```shell
+[db3] > hincrby user001 age 1
+(integer) 21
+
+[db3] > hincrby user001 age 3
+(integer) 24
+
+[db3] > hincrby user001 age -1
+(integer) 23
+```
+
+> hsetnx key field value
+
+将hash中的field的值设置为value，当且仅当field不存在。成功返回1，失败返回0。
+
+```shell
+[db3] > hsetnx user001 name Jonny
+(integer) 0
+
+[db3] > hsetnx user001 lastName Jonny
+(integer) 1
+```
+
+#### 数据结构
+
+hash类型对应的数据结构是两种：`ziplist` （压缩列表）、`hashtable`（hash表）。当field-value长度较短且个数较少时，使用ziplist，否则使用hashtable。
 
 ---

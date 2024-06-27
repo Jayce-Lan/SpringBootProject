@@ -997,3 +997,152 @@ Redis hash是一个string类型的`field`和`value`的映射表，hash特别适�
 hash类型对应的数据结构是两种：`ziplist` （压缩列表）、`hashtable`（hash表）。当field-value长度较短且个数较少时，使用ziplist，否则使用hashtable。
 
 ---
+
+### 有序集合（Zset）
+
+#### 简介
+
+Redis有序集合zset（sorted set）与普通集合set非常相似，是一个**没有重复元素**的字符串集合。
+
+不同之处是有序集合的每个成员都关联了一个**评分（score）**，这个评分被用来按照从最低分到最高分的方式排序集合中的成员。**集合的成员是唯一的，但是评分是可以重复的**。
+
+因为元素是有序的，所以可以根据评分或者次序（position）来获取一个范围的元素。
+
+访问有序集合中的中间元素也是非常快的，因此能够使用有序集合作为一个没有重复成员的只能列表。
+
+#### 常用命令
+
+> zadd key [NX | XX] [GT | LT] [CH] [INCR] score member [score member]
+
+将一个或多个member按照排序分数score加入到有序集合key中，返回插入个数。
+
+```shell
+[db3] > zadd z1 1 v1 2 v2 3 v3
+(integer) 3
+```
+
+> zrange key start stop [BYSOCORE | BYLEX] [REV] [LIMIT offset count] [WITHSCORES]
+
+返回游戏集合key中下标在`[start, stop]`之间的元素，stop为-1时为取全部。
+
+WITHSCORES: 让score和对应的集合内的元素一起返回。
+
+```shell
+[db3] > zrange z1 0 1
+1) "v1"
+2) "v2"
+[db3] > zrange z1 0 1 withscores
+1) "v1"
+2) "1"
+3) "v2"
+4) "2"
+```
+
+> zrangebyscore key min max [WITHSCORES] [LIMIT offset count]
+
+返回有序集合key中，所有score在`[min, max]`之间的成员。有序集合成员按score值递增（从小到大）次序排练。
+
+```shell
+[db3] > zrangebyscore z1 1 3
+1) "v1"
+2) "v2"
+3) "v3"
+```
+
+> zrevrangeby key max min [WITHSCORES] [LIMIT offset count]
+
+同上，但是排练顺序为由大到小。
+
+```shell
+[db3] > zrevrangebyscore z1 3 1
+1) "v3"
+2) "v2"
+3) "v1"
+```
+
+> zincrby key increment member
+
+为member元素的score加上增量increment，返回增加后的元素的score。
+
+```shell
+[db3] > zincrby z1 1 v1
+"2"
+
+[db3] > zincrby z1 5 v1
+"7"
+```
+
+> zrem key member [member ...]
+
+删除key集合下指定元素，返回删除成功元素个数
+
+```shell
+[db3] > zrem z1 v1 v2
+(integer) 2
+```
+
+> zcount key min max
+
+统计该集合下分数区间`[min, max]`区间元素个数
+
+```shell
+[db3] > zcount z1 2 3
+(integer) 2
+```
+
+> zrank key member [WITHSCORE]
+
+返回元素在集合内的排名，从0开始，由小到大。
+
+```shell
+[db3] > zrank z1 v1
+(integer) 2
+
+[db3] > zrank z1 v1 withscore
+1) "2"
+2) "7"
+```
+
+#### 数据结构
+
+zset（SortedSet）是Redis提供的一个非常特别的数据结构，一方面它等价于Java数据结构`Map<String, Double>，可以给每一个元素value赋予一个权重score；另一方面它又类似于TreeSet，内部的元素会按照权重score进行排序，可以得到每个元素的名词，还可以通过score的范围来获取元素的列表。
+
+zset底层使用了两个数据结构：
+
+- hash，hash的作用就是关联元素value和权重score，保障元素value的唯一性，可以通过元素value找到对应的score值
+
+- 跳跃表，跳跃表的目的在于给元素value排序，根据score的范围获取元素列表
+
+#### 跳跃表（跳表）
+
+> 简介
+
+有序集合在生活中比较常见，录入根据成绩对学生排名、根据得分对玩家排名等。对于有序集合的底层实现，可以用数组、平衡数、链表等。数组不便于元素的插入、删除；平衡树或红黑树虽然效率高但是结构复杂；链表查询需要遍历所有，效率低。Redis采用的是跳跃表。跳跃表效率堪比红黑树，实现远比红黑树简单。
+
+> 实例
+
+对比有序链表和跳跃表，从表中查询出51
+
+- 有序链表
+  
+  - `1`=>`11`=>`21`=>`31`=>`41`=>`51`=>`61`=>null
+  
+  - 要查找值为51的元素，需要从第一个元素开始依次查找、比较才能找到。共需要6次比较。
+
+- 跳跃表
+  
+  - 跳跃表查找方式
+  
+  - ![redis zset](https://gitee.com/Jayce_Lan/some_img/raw/master/RedisLearnImg/redis7-zset.png)
+  
+  - 从第2层开始，1节点比51节点小，向后比较
+  
+  - 21节点比51节点小，继续向后比较，后面就是null了，所以从21节点向下到第1层
+  
+  - 在第1层，41节点比51节点小，继续向后，61节点比51节点大，所以从41向下
+  
+  - 在第0层，51节点为要查找的点，节点被找到，共查询4次。
+
+由此可见，跳跃表比有序链表效率要高。
+
+---

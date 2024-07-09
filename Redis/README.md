@@ -1105,7 +1105,7 @@ WITHSCORES: 让score和对应的集合内的元素一起返回。
 
 #### 数据结构
 
-zset（SortedSet）是Redis提供的一个非常特别的数据结构，一方面它等价于Java数据结构`Map<String, Double>，可以给每一个元素value赋予一个权重score；另一方面它又类似于TreeSet，内部的元素会按照权重score进行排序，可以得到每个元素的名词，还可以通过score的范围来获取元素的列表。
+zset（SortedSet）是Redis提供的一个非常特别的数据结构，一方面它等价于Java数据结构`Map<String, Double>`，可以给每一个元素value赋予一个权重score；另一方面它又类似于TreeSet，内部的元素会按照权重score进行排序，可以得到每个元素的名词，还可以通过score的范围来获取元素的列表。
 
 zset底层使用了两个数据结构：
 
@@ -1146,3 +1146,227 @@ zset底层使用了两个数据结构：
 由此可见，跳跃表比有序链表效率要高。
 
 ---
+
+## 配置文件
+
+### 配置文件所在位置
+
+根据系统的不同，Redis配置文件`redis.conf`会存储在不同位置。
+
+> Linux和Windows
+
+Redis的配置文件通常位于Redis的安装目录下，文件名为`redis.conf`。具体位置可能因操作系统和安装方式的不同而有所变化，但以下是几个常见的默认位置：
+
+- **Ubuntu等Linux发行版**：如果使用`apt`或其他包管理器安装，配置文件通常位于`/etc/redis/redis.conf`。
+- **手动安装的Linux系统**：配置文件可能位于Redis安装目录的`conf`子目录下，或直接在安装根目录下，例如`/usr/local/redis/conf/redis.conf`。
+- **Windows系统**：配置文件名为`redis.windows.conf`，位置依据Redis的安装路径而定，如果使用zip包解压安装，它通常位于解压目录内。
+
+如果不确定配置文件的具体位置，可以尝试以下几个方法找到它：
+
+1. **查看Redis服务的启动脚本或服务定义文件**（如`/etc/systemd/system/redis.service`或`/etc/init.d/redis`），这些文件中可能会指明配置文件的路径。
+2. **使用命令行查找**：在Linux系统中，可以尝试使用`find`命令全局查找，或者如果Redis服务正在运行，可以通过`ps aux | grep redis-server`查看启动命令行参数中是否包含了配置文件的路径。
+3. **直接询问Redis服务器**：如果可以访问Redis服务器，可以使用`CONFIG GET dir`命令获取Redis的数据目录，配置文件通常位于此目录或其附近。
+
+请根据你的实际情况检查上述路径或使用相应的方法定位配置文件。
+
+> brew安装的Redis
+
+如果是macOS，会使用`homebrew`进行Redis的安装，此时执行以下命令可以查询Redis配置文件、安装路径等信息
+
+```shell
+macbook / % brew info redis
+==> redis: stable 7.2.4 (bottled), HEAD
+Persistent key-value database, with built-in net interface
+https://redis.io/
+/opt/homebrew/Cellar/redis/7.2.4 (14 files, 2.4MB) *
+  Poured from bottle using the formulae.brew.sh API on 2024-03-28 at 08:47:56
+From: https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/r/redis.rb
+License: BSD-3-Clause
+==> Dependencies
+Required: openssl@3 ✔
+==> Options
+--HEAD
+        Install HEAD version
+==> Caveats
+To restart redis after an upgrade:
+  brew services restart redis
+Or, if you don't want/need a background service you can just run:
+  /opt/homebrew/opt/redis/bin/redis-server /opt/homebrew/etc/redis.conf
+```
+
+### Units单位
+
+配置大小单位，开头定义了一些基本的度量单位，只支持`bytes` ，不支持`bit`，大小写不敏感。
+
+```shell
+# Note on units: when memory size is needed, it is possible to specify
+# it in the usual form of 1k 5GB 4M and so forth:
+#
+# 1k => 1000 bytes
+# 1kb => 1024 bytes
+# 1m => 1000000 bytes
+# 1mb => 1024*1024 bytes
+# 1g => 1000000000 bytes
+# 1gb => 1024*1024*1024 bytes
+#
+# units are case insensitive so 1GB 1Gb 1gB are all the same.
+```
+
+### INCLUDES包含内容
+
+可以使用`include`关键字引入外部配置文件，使得Redis配置包含这些引入配置的内容。
+
+```shell
+################################## INCLUDES ###################################
+
+# Include one or more other config files here.  This is useful if you
+# have a standard template that goes to all Redis servers but also need
+# to customize a few per-server settings.  Include files can include
+# other files, so use this wisely.
+#
+# Note that option "include" won't be rewritten by command "CONFIG REWRITE"
+# from admin or Redis Sentinel. Since Redis always uses the last processed
+# line as value of a configuration directive, you'd better put includes
+# at the beginning of this file to avoid overwriting config change at runtime.
+#
+# If instead you are interested in using includes to override configuration
+# options, it is better to use include as the last line.
+#
+# include /path/to/local.conf
+# include /path/to/other.conf
+```
+
+### NETWORK网络相关配置
+
+```shell
+################################## NETWORK #####################################
+
+# By default, if no "bind" configuration directive is specified, Redis listens
+# for connections from all available network interfaces on the host machine.
+# It is possible to listen to just one or multiple selected interfaces using
+# the "bind" configuration directive, followed by one or more IP addresses.
+# Each address can be prefixed by "-", which means that redis will not fail to
+# start if the address is not available. Being not available only refers to
+# addresses that does not correspond to any network interfece. Addresses that
+# are already in use will always fail, and unsupported protocols will always BE
+# silently skipped.
+#
+# Examples:
+#
+# bind 192.168.1.100 10.0.0.1     # listens on two specific IPv4 addresses
+# bind 127.0.0.1 ::1              # listens on loopback IPv4 and IPv6
+# bind * -::*                     # like the default, all available interfaces
+#
+# ~~~ WARNING ~~~ If the computer running Redis is directly exposed to the
+# internet, binding to all the interfaces is dangerous and will expose the
+# instance to everybody on the internet. So by default we uncomment the
+# following bind directive, that will force Redis to listen only on the
+# IPv4 and IPv6 (if available) loopback interface addresses (this means Redis
+# will only be able to accept client connections from the same host that it is
+# running on).
+#
+# IF YOU ARE SURE YOU WANT YOUR INSTANCE TO LISTEN TO ALL THE INTERFACES
+# JUST COMMENT OUT THE FOLLOWING LINE.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+bind 127.0.0.1 ::1
+
+# Protected mode is a layer of security protection, in order to avoid that
+# Redis instances left open on the internet are accessed and exploited.
+#
+# When protected mode is on and if:
+#
+# 1) The server is not binding explicitly to a set of addresses using the
+#    "bind" directive.
+# 2) No password is configured.
+#
+# The server only accepts connections from clients connecting from the
+# IPv4 and IPv6 loopback addresses 127.0.0.1 and ::1, and from Unix domain
+# sockets.
+#
+# By default protected mode is enabled. You should disable it only if
+# you are sure you want clients from other hosts to connect to Redis
+# even if no authentication is configured, nor a specific set of interfaces
+# are explicitly listed using the "bind" directive.
+protected-mode yes
+
+# Accept connections on the specified port, default is 6379 (IANA #815344).
+# If port 0 is specified Redis will not listen on a TCP socket.
+port 6379
+
+# TCP listen() backlog.
+#
+# In high requests-per-second environments you need a high backlog in order
+# to avoid slow clients connection issues. Note that the Linux kernel
+# will silently truncate it to the value of /proc/sys/net/core/somaxconn so
+# make sure to raise both the value of somaxconn and tcp_max_syn_backlog
+# in order to get the desired effect.
+tcp-backlog 511
+
+# Unix socket.
+#
+# Specify the path for the Unix socket that will be used to listen for
+# incoming connections. There is no default, so Redis will not listen
+# on a unix socket when not specified.
+#
+# unixsocket /run/redis.sock
+# unixsocketperm 700
+
+# Close the connection after a client is idle for N seconds (0 to disable)
+timeout 0
+
+# TCP keepalive.
+#
+# If non-zero, use SO_KEEPALIVE to send TCP ACKs to clients in absence
+# of communication. This is useful for two reasons:
+#
+# 1) Detect dead peers.
+# 2) Force network equipment in the middle to consider the connection to be
+#    alive.
+#
+# On Linux, the specified value (in seconds) is the period used to send ACKs.
+# Note that to close the connection the double of the time is needed.
+# On other kernels the period depends on the kernel configuration.
+#
+# A reasonable value for this option is 300 seconds, which is the new
+# Redis default starting with Redis 3.2.1.
+tcp-keepalive 300
+```
+
+> bind
+
+- 默认情况下bind=127.0.01只能接受本机的访问请求
+
+- 不写的情况下无限制接受任何ip地址访问
+
+- 生产环境需要配置成服务器地址；服务器是需要远程访问的，所以需要将其注释（注释掉bind 127.0.0.1）
+
+> protected-mode
+
+如果开启了`protected-mode`，那么在没有设定bind ip且没有密码的情况下，Redis只允许接受本机的响应（`protected-mode yes`）。需要支持远程访问需要设置为`protected-mode no`
+
+> tcp-backlog
+
+设置tcp的backlog，backlog其实是一个连接队列
+
+```shell
+backlog队列总和 = 未完成三次握手队列 + 已完成三次握手队列
+```
+
+在高并发环境下，需要一个高backlog值来避免客户端连接问题。
+
+注意，Linux内核会将这个值减小到`/proc/sys/net/core/somaxconn`的值（128），所以需要确认增大`/proc/sys/net/core/somaxconn`和`/proc/sys/net/ipv4/tcp_max_syn_backlog`（128）两个值来达到想要的效果。
+
+> timeout
+
+客户端闲置 N 秒后关闭连接（0 表示禁用）。以秒作为监听单位，没有默认值，在Redis未指定该值时不会做监听。
+
+> tcp-keepalive
+
+如果非零，则使用 `SO_KEEPALIVE` 向客户机发送 `TCP ACK`，以避免通信中断。向客户端发送 TCP ACK。这样做有两个好处:
+
+1) 检测死机的对等设备。
+2) 迫使中间的网络设备认为连接是存活的
+
+在 Linux 上，指定值（秒）是用于发送 ACK 的时间。请注意，关闭连接需要双倍的时间。在其他内核上，周期取决于内核配置。该选项的一个合理值是 300 秒，这是新的Redis 默认值。
+
+### GENERAL通用

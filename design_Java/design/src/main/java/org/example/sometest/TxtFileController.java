@@ -7,6 +7,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 
 public class TxtFileController {
     private final Logger log = LogManager.getLogger(this.getClass().getName());
@@ -16,7 +17,8 @@ public class TxtFileController {
         TxtFileController txtFileController = new TxtFileController();
 //        txtFileController.readWholeTxtAndReplacement(FILE_PATH,
 //                "<br />", "\n");
-        txtFileController.readTxtFileForRow(FILE_PATH);
+//        txtFileController.readTxtFileForRow(FILE_PATH);
+        txtFileController.testString();
     }
 
     /**
@@ -96,5 +98,12 @@ public class TxtFileController {
         } catch (IOException e) {
             System.err.println(e.getMessage());
         }
+    }
+
+    private void testString() {
+        StringBuffer stringBuffer = new StringBuffer();
+        log.info(stringBuffer.length());
+        stringBuffer.append("1");
+        log.info(stringBuffer.length());
     }
 }
